@@ -13,3 +13,5 @@ test('reports invalid and empty-matching regex without throwing',()=>{const brok
 test('preserves line and column for every match',()=>{const result=scanCustomRules('pierwsza\nID-42 i ID-43',[{id:'1',name:'ID',mode:'regex',pattern:'ID-\\d+',mask:'[ID]',ignoreCase:false,enabled:true}]);assert.deepEqual(result.findings.map(x=>({line:x.line,column:x.column,value:x.value})),[{line:2,column:1,value:'ID-42'},{line:2,column:9,value:'ID-43'}])});
 
 test('saves and loads rules from local storage adapter',()=>{const data=new Map(),storage={getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value)};const rules=[{id:'1',name:'Projekt',mode:'literal',pattern:'ALFA',mask:'[PROJECT]',ignoreCase:true,enabled:true}];assert.equal(saveCustomRules(rules,storage),true);assert.ok(data.has(CUSTOM_RULES_STORAGE_KEY));assert.deepEqual(loadCustomRules(storage),rules)});
+
+test('handles unavailable browser storage without throwing',()=>{assert.deepEqual(loadCustomRules(null),[]);assert.equal(saveCustomRules([],null),false)});
