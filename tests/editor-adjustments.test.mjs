@@ -12,6 +12,8 @@ import {
   normalizeAdjustment
 } from '../src/editor-adjustments.js';
 import { blendAdjustmentPixels, isAdjustmentLayer } from '../src/editor-adjustment-renderer.js';
+import { createEditorDocument, createGroupLayer, createLayerMask } from '../src/editor-document.js';
+import { CommandHistory, updateLayerCommand } from '../src/editor-history.js';
 
 const rgba = (...pixels) => new Uint8ClampedArray(pixels.flat());
 const pixel = (data, index = 0) => [...data.slice(index * 4, index * 4 + 4)];
@@ -172,4 +174,29 @@ test('adjustment layers are identified through serializable metadata', () => {
   assert.equal(isAdjustmentLayer(layer), true);
   assert.equal(isAdjustmentLayer({ type: 'group', metadata: {}, children: [] }), false);
   assert.doesNotThrow(() => JSON.stringify(layer));
+});
+
+test('adjustment layers survive document serialization and parameter undo redo', () => {
+  const layer = createGroupLayer({
+    id: 'adjustment',
+    name: 'Ekspozycja',
+    metadata: { kind: 'adjustment', adjustment: createAdjustment('exposure', { exposure: 0.25 }) },
+    mask: createLayerMask({ enabled: true, opacity: 0.8, metadata: { mode: 'full' } }),
+    children: []
+  });
+  const documentModel = createEditorDocument({ width: 8, height: 6, layers: [layer], activeLayerId: layer.id });
+  const history = new CommandHistory();
+  const next = createAdjustment('exposure', { exposure: 1.5, contrast: 20 });
+  history.execute(updateLayerCommand(layer.id, { metadata: { adjustment: next } }, { label: 'Zmień korektę' }), documentModel);
+  assert.equal(documentModel.getLayer(layer.id).metadata.adjustment.parameters.exposure, 1.5);
+  history.undo(documentModel);
+  assert.equal(documentModel.getLayer(layer.id).metadata.adjustment.parameters.exposure, 0.25);
+  history.redo(documentModel);
+  assert.equal(documentModel.getLayer(layer.id).metadata.adjustment.parameters.contrast, 20);
+
+  const serialized = JSON.parse(JSON.stringify(documentModel));
+  const restored = createEditorDocument(serialized);
+  assert.equal(isAdjustmentLayer(restored.getLayer(layer.id)), true);
+  assert.equal(restored.getLayer(layer.id).mask.opacity, 0.8);
+  assert.equal(restored.getLayer(layer.id).metadata.adjustment.parameters.exposure, 1.5);
 });
