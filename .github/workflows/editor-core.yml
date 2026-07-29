@@ -4,11 +4,8 @@ on:
   pull_request:
     paths:
       - 'editor.html'
-      - 'editor.css'
-      - 'editor-canvas.css'
-      - 'editor-tools.css'
-      - 'editor-runtime.css'
-      - 'editor-adjustments.css'
+      - 'editor-*.css'
+      - 'sw.js'
       - 'src/editor-*.js'
       - 'src/search-core.js'
       - 'src/conversation-answer.js'
@@ -22,11 +19,8 @@ on:
     branches: [main]
     paths:
       - 'editor.html'
-      - 'editor.css'
-      - 'editor-canvas.css'
-      - 'editor-tools.css'
-      - 'editor-runtime.css'
-      - 'editor-adjustments.css'
+      - 'editor-*.css'
+      - 'sw.js'
       - 'src/editor-*.js'
       - 'src/search-core.js'
       - 'src/conversation-answer.js'
