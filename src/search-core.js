@@ -85,19 +85,21 @@ function keywordTokens(value) {
     .filter((term) => term.length > 1);
 }
 
-function commonPrefixLength(left, right) {
-  const limit = Math.min(left.length, right.length);
-  let index = 0;
-  while (index < limit && left[index] === right[index]) index += 1;
-  return index;
+const POLISH_SUFFIXES = ['owania', 'owanie', 'owaniu', 'owego', 'owej', 'ami', 'ach', 'enie', 'eniu', 'ienia', 'ienie', 'ieniu', 'owac', 'ujac', 'ajac', 'iec', 'ac', 'ic', 'yc', 'ec', 'em', 'om', 'ie', 'a', 'e', 'i', 'y'];
+
+function keywordStem(token) {
+  if (token.length < 5) return token;
+  const suffix = POLISH_SUFFIXES.find((candidate) => token.endsWith(candidate) && token.length - candidate.length >= 4);
+  return suffix ? token.slice(0, -suffix.length) : token;
 }
 
 function tokensShareRoot(queryToken, textToken) {
   if (queryToken === textToken) return true;
-  const shorterLength = Math.min(queryToken.length, textToken.length);
-  if (shorterLength < 4) return false;
-  const requiredPrefix = Math.max(4, Math.ceil(shorterLength * 0.8));
-  return commonPrefixLength(queryToken, textToken) >= requiredPrefix;
+  const queryStem = keywordStem(queryToken);
+  const textStem = keywordStem(textToken);
+  if (queryStem === textStem && queryStem.length >= 4) return true;
+  const shorterLength = Math.min(queryStem.length, textStem.length);
+  return shorterLength >= 6 && (queryStem.startsWith(textStem) || textStem.startsWith(queryStem));
 }
 
 export function keywordScore(query, text) {
