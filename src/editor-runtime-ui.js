@@ -42,18 +42,19 @@ export class RuntimeDiagnosticsPanel {
     const pendingCount = diagnostics.queue.pending.length;
     const report = diagnostics.lastReport;
     const backend = report?.metadata?.actualBackend ?? this.engine.backend ?? null;
+    const runningModel = running ? diagnostics.compatibility.find(model => model.id === running.metadata.modelId)?.name ?? running.metadata.modelId : null;
 
     if (this.elements.cancel) this.elements.cancel.disabled = !running;
     if (this.elements.export) this.elements.export.disabled = !report;
     if (this.elements.backend) {
       this.elements.backend.textContent = backend
-        ? `${backendLabel(backend)}${report?.metadata?.fallbackUsed ? ' · fallback' : ''}`
+        ? `${backendLabel(backend)}${report?.metadata?.fallbackUsed ? ' · tryb zapasowy' : ''}`
         : 'Nie uruchomiono zadania';
       this.elements.backend.dataset.tone = backend === 'npu' ? 'success' : backend ? 'warning' : 'neutral';
     }
     if (this.elements.queue) {
       this.elements.queue.textContent = running
-        ? `W toku: ${running.metadata.modelId} · ${formatProgress(running.progress)}${pendingCount ? ` · oczekuje ${pendingCount}` : ''}`
+        ? `W toku: ${runningModel} · ${formatProgress(running.progress)}${pendingCount ? ` · oczekuje ${pendingCount}` : ''}`
         : pendingCount ? `W kolejce: ${pendingCount}` : 'Kolejka pusta';
     }
     if (this.elements.ioBinding) {
@@ -77,7 +78,7 @@ export class RuntimeDiagnosticsPanel {
       const name = document.createElement('strong');
       name.textContent = model.name;
       const task = document.createElement('small');
-      task.textContent = model.task;
+      task.textContent = taskLabel(model.task);
       copy.append(name, task);
       const badges = document.createElement('span');
       badges.className = 'runtime-backend-badges';
@@ -132,20 +133,25 @@ export function ensureRuntimePanel(root = document) {
   actions.insertAdjacentHTML('beforeend', '<button id="runtime-cancel" class="panel-button" type="button" disabled>Anuluj zadanie</button>');
   body.append(actions);
 
-  const panel = root.createElement('section');
+  const queueStatus = root.createElement('p');
+  queueStatus.id = 'runtime-queue-status';
+  queueStatus.className = 'runtime-live-status';
+  queueStatus.setAttribute('aria-live', 'polite');
+  queueStatus.textContent = 'Kolejka pusta';
+  body.append(queueStatus);
+
+  const panel = root.createElement('details');
   panel.id = 'runtime-diagnostics';
   panel.className = 'runtime-diagnostics';
-  panel.setAttribute('aria-label', 'Diagnostyka modeli AI');
   panel.innerHTML = `
-    <div class="runtime-summary">
-      <span id="runtime-backend-detail" class="badge" data-tone="neutral">Nie uruchomiono zadania</span>
-      <span id="runtime-queue-status" aria-live="polite">Kolejka pusta</span>
-    </div>
-    <p id="runtime-io-binding" class="hint">IO binding: oczekuje na zgodną sesję NPU.</p>
-    <div class="runtime-subheading"><strong>Modele i backendy</strong><small>zielony: dostępny · pusty: niewspierany</small></div>
-    <div id="runtime-model-list" class="runtime-model-list"></div>
-    <div class="runtime-subheading"><strong>Ostatni benchmark</strong><button id="runtime-export-report" class="runtime-link-button" type="button" disabled>Eksport JSON</button></div>
-    <div id="runtime-stage-list" class="runtime-stage-list"><p class="hint">Po pierwszej inferencji pojawi się rozbicie czasu na etapy.</p></div>`;
+    <summary><span>Diagnostyka modeli</span><span id="runtime-backend-detail" class="badge" data-tone="neutral">Nie uruchomiono zadania</span></summary>
+    <div class="runtime-diagnostics-body">
+      <p id="runtime-io-binding" class="hint">IO binding: oczekuje na zgodną sesję NPU.</p>
+      <div class="runtime-subheading"><strong>Modele i backendy</strong><small>zielony: dostępny · szary: wspierany · przerywany: niewspierany</small></div>
+      <div id="runtime-model-list" class="runtime-model-list"></div>
+      <div class="runtime-subheading"><strong>Ostatni benchmark</strong><button id="runtime-export-report" class="runtime-link-button" type="button" disabled>Eksport JSON</button></div>
+      <div id="runtime-stage-list" class="runtime-stage-list"><p class="hint">Po pierwszej inferencji pojawi się rozbicie czasu na etapy.</p></div>
+    </div>`;
   body.append(panel);
 }
 
@@ -166,14 +172,21 @@ function shortBackend(backend) {
   return ({ npu: 'NPU', webgpu: 'GPU', wasm: 'CPU' })[backend] ?? backend;
 }
 
+function taskLabel(task) {
+  return ({
+    'background-removal': 'usuwanie tła',
+    'depth-estimation': 'mapa głębi'
+  })[task] ?? task;
+}
+
 function stageLabel(stage) {
   return ({
     download: 'Pobieranie / cache',
-    preprocessing: 'Preprocessing',
+    preprocessing: 'Przygotowanie obrazu',
     'transfer-in': 'Transfer wejścia',
     inference: 'Inferencja',
     'transfer-out': 'Transfer wyniku',
-    postprocessing: 'Postprocessing'
+    postprocessing: 'Przygotowanie wyniku'
   })[stage] ?? stage;
 }
 
