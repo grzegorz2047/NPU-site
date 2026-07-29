@@ -1,1 +1,1 @@
-{"name":"LocalLab NPU","short_name":"LocalLab","description":"Lokalne studio obrazu, skaner prywatności i audyt umów działające bez wysyłania danych do chmury","start_url":"./","scope":"./","display":"standalone","background_color":"#07100d","theme_color":"#07100d"}
+{"name":"LocalStudio NPU","short_name":"LocalStudio","description":"Pełny lokalny edytor obrazu, skaner prywatności i audyt umów bez wysyłania danych do chmury","start_url":"./","scope":"./","display":"standalone","background_color":"#08120f","theme_color":"#08120f"}
