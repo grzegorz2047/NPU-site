@@ -23,6 +23,7 @@ Pełnosprawny lokalny edytor obrazu w kompaktowym układzie typu desktopowego. U
 - gotowe presety: portret do CV, sticker PNG i rozmyte tło portretu,
 - ręczną anonimizację screenshotów przez blur, pikselizację albo czarny pasek,
 - niedestrukcyjny dokument z warstwami, maskami, trybami mieszania oraz undo/redo,
+- niedestrukcyjne warstwy korekcyjne z poziomami, krzywymi, HSL, histogramem, maskami i presetami,
 - płynny zoom zakotwiczony pod kursorem, pan myszą/touchpadem i szybkie dopasowanie widoku,
 - crop z proporcjami i prostowaniem, resize dokumentu lub aktywnej warstwy,
 - swobodną transformację warstwy: przesunięcie, skala, obrót, skew i perspektywa,
@@ -58,7 +59,10 @@ Model edytora jest niezależny od DOM i rozdzielony na moduły:
 - `src/editor-inference-queue.js` — priorytety, postęp i anulowanie zadań,
 - `src/editor-inference-runtime.js` — wspólne API sesji, jawny fallback i reuse,
 - `src/editor-tiling.js` — kafelki z overlapem i składanie bez twardych szwów,
-- `src/editor-runtime-ui.js` — diagnostyka backendu, kolejki i benchmarku.
+- `src/editor-runtime-ui.js` — diagnostyka backendu, kolejki i benchmarku,
+- `src/editor-adjustments.js` — schematy korekt, histogram i presety,
+- `src/editor-adjustment-renderer.js` — stos korekt, maski, krycie i blend modes,
+- `src/editor-adjustments-ui.js` — panel warstw korekcyjnych, krzywe i porównanie przed/po.
 
 Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'u pozostaje zgodny z presetami, korektami, MODNet, podmianą tła i redakcją, a kolejne wyniki AI mogą być dodawane jako osobna warstwa lub maska.
 
@@ -79,6 +83,18 @@ Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'
 - gumka dopisuje pociągnięcia do maski warstwy zamiast usuwać źródłowe piksele,
 - warstwy malowania są cache’owane przyrostowo, więc kolejne pociągnięcia nie odtwarzają całej historii od zera.
 
+#### Korekty niedestrukcyjne
+
+- korekty są osobnymi warstwami i nie nadpisują źródłowych pikseli,
+- kolejność warstw korekcyjnych wpływa na wynik kompozycji,
+- dostępne są ekspozycja, jasność, kontrast, gamma, poziomy RGB/per kanał, krzywe RGB/per kanał, balans bieli, HSL per zakres, vibrance, saturation, shadows/highlights, clarity, dehaze, sharpen, blur, winieta i ziarno,
+- każda warstwa obsługuje maskę z zaznaczenia, krycie, widoczność, blokadę oraz tryby mieszania,
+- histogram RGB/luminancji i ostrzeżenia clippingu są podglądem i nie trafiają do eksportu,
+- presety wbudowane są tylko do odczytu, a własne zapisują się lokalnie,
+- przytrzymanie przycisku porównania renderuje dokument bez warstw korekcyjnych.
+
+Szczegóły architektury i ograniczeń znajdują się w `docs/EDITOR_ADJUSTMENTS.md`.
+
 #### Projekty lokalne
 
 - dokument, historia undo/redo, ustawienia i binarne zasoby obrazu są automatycznie zapisywane w IndexedDB,
@@ -93,6 +109,7 @@ Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'
 - **Zdjęcie do CV:** wczytaj zdjęcie, użyj presetu CV, sprawdź maskę i pobierz JPEG.
 - **Sticker:** wytnij tło, dodaj obwódkę i cień, pobierz PNG.
 - **Anonimizowany screenshot:** wybierz tryb redakcji, zaznacz dane i pobierz gotowy obraz.
+- **Korekcja tonalna:** dodaj warstwę ekspozycji lub krzywych, ustaw maskę i porównaj wynik przed eksportem.
 
 ### Skaner prywatności — `/privacy.html`
 
@@ -117,6 +134,8 @@ Tryb `Auto` sprawdza zgodne backendy kolejno NPU → WebGPU → WASM. Tryb `Tylk
 
 Pliki modeli są cache’owane z kluczem zawierającym wersję i backend, a gotowe sesje są ponownie używane. Pełna rozdzielczość może być przetwarzana kafelkami z overlapem i ważonym składaniem wyniku. Szczegóły znajdują się w `docs/EDITOR_NPU_RUNTIME.md`.
 
+Proste korekty tonalne i filtry pikselowe działają przez Canvas/CPU, a nie NPU. NPU pozostaje przeznaczone dla inferencji modeli obrazu.
+
 ## Prywatność
 
 - brak backendu, kont i analityki,
@@ -140,4 +159,4 @@ Dla pracy agentowej, walidacji Chromium i fallbacku przy ograniczonym DNS zobacz
 npm test
 ```
 
-Testy obejmują rdzeń kompozycji obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, geometrię zaznaczeń, magic wand, historię pociągnięć, gumkę maskującą, cache warstw malowania, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, preprocessing MODNet, rejestr i cache modeli, wybór oraz fallback backendów, kolejkę i anulowanie inferencji, reuse sesji, benchmark etapów, tiling z overlapem, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
+Testy obejmują rdzeń kompozycji obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, geometrię zaznaczeń, magic wand, historię pociągnięć, gumkę maskującą, cache warstw malowania, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, tonalne i przestrzenne warstwy korekcyjne, poziomy, krzywe, HSL, histogram, clipping i presety, preprocessing MODNet, rejestr i cache modeli, wybór oraz fallback backendów, kolejkę i anulowanie inferencji, reuse sesji, benchmark etapów, tiling z overlapem, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
