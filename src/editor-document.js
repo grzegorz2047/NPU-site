@@ -131,58 +131,74 @@ export class EditorDocument {
     return findLayer(this.layers, id);
   }
 
+  getLayerLocation(id) {
+    return findLayerLocation(this.layers, id);
+  }
+
   getLayerIndex(id) {
-    return this.layers.findIndex(layer => layer.id === id);
+    return this.getLayerLocation(id)?.index ?? -1;
+  }
+
+  getLayerSiblings(id) {
+    return this.getLayerLocation(id)?.siblings ?? null;
   }
 
   get activeLayer() {
     return this.getLayer(this.activeLayerId);
   }
 
-  addLayer(layer, index = this.layers.length) {
+  addLayer(layer, index = null, parentId = null) {
     const normalized = normalizeLayer(layer);
     if (this.getLayer(normalized.id)) throw new Error(`Warstwa ${normalized.id} już istnieje.`);
-    const target = clampIndex(index, this.layers.length + 1);
-    this.layers.splice(target, 0, normalized);
+    const parent = parentId ? this.getLayer(parentId) : null;
+    if (parentId && (!parent || parent.type !== 'group')) throw new Error(`Nie znaleziono grupy ${parentId}.`);
+    const siblings = parent?.children ?? this.layers;
+    const target = clampInsertIndex(index ?? siblings.length, siblings.length);
+    siblings.splice(target, 0, normalized);
     this.setSelection([normalized.id], normalized.id, { emit: false });
     this.touch();
-    this.emit('layer:add', { layer: normalized, index: target });
+    this.emit('layer:add', { layer: normalized, index: target, parentId });
     return normalized;
   }
 
   removeLayer(id) {
-    const index = this.getLayerIndex(id);
-    if (index < 0) return null;
-    const [removed] = this.layers.splice(index, 1);
-    this.selectedLayerIds = this.selectedLayerIds.filter(layerId => layerId !== id);
-    if (this.activeLayerId === id) {
-      const replacement = this.layers[Math.min(index, this.layers.length - 1)] ?? null;
+    const location = this.getLayerLocation(id);
+    if (!location) return null;
+    const removedIds = new Set(flattenLayers([location.layer]).map(layer => layer.id));
+    const [removed] = location.siblings.splice(location.index, 1);
+    this.selectedLayerIds = this.selectedLayerIds.filter(layerId => !removedIds.has(layerId));
+    if (removedIds.has(this.activeLayerId)) {
+      const replacement = location.siblings[Math.min(location.index, location.siblings.length - 1)] ?? location.parent ?? null;
       this.activeLayerId = replacement?.id ?? null;
       this.selectedLayerIds = replacement ? [replacement.id] : [];
     }
     this.touch();
-    this.emit('layer:remove', { layer: removed, index });
+    this.emit('layer:remove', { layer: removed, index: location.index, parentId: location.parent?.id ?? null });
     return removed;
   }
 
   duplicateLayer(id, index = null) {
-    const sourceIndex = this.getLayerIndex(id);
-    if (sourceIndex < 0) throw new Error(`Nie znaleziono warstwy ${id}.`);
-    const duplicate = cloneLayer(this.layers[sourceIndex]);
-    return this.addLayer(duplicate, index ?? sourceIndex + 1);
+    const location = this.getLayerLocation(id);
+    if (!location) throw new Error(`Nie znaleziono warstwy ${id}.`);
+    const duplicate = cloneLayer(location.layer);
+    return this.addLayer(duplicate, index ?? location.index + 1, location.parent?.id ?? null);
   }
 
   moveLayer(id, targetIndex) {
-    const sourceIndex = this.getLayerIndex(id);
-    if (sourceIndex < 0) throw new Error(`Nie znaleziono warstwy ${id}.`);
-    const boundedTarget = clampIndex(targetIndex, this.layers.length);
-    if (sourceIndex === boundedTarget) return sourceIndex;
-    const [layer] = this.layers.splice(sourceIndex, 1);
-    const adjustedTarget = clampIndex(boundedTarget, this.layers.length + 1);
-    this.layers.splice(adjustedTarget, 0, layer);
+    const location = this.getLayerLocation(id);
+    if (!location) throw new Error(`Nie znaleziono warstwy ${id}.`);
+    const target = clampMoveIndex(targetIndex, location.siblings.length);
+    if (location.index === target) return location.index;
+    const [layer] = location.siblings.splice(location.index, 1);
+    location.siblings.splice(target, 0, layer);
     this.touch();
-    this.emit('layer:move', { layer, from: sourceIndex, to: adjustedTarget });
-    return adjustedTarget;
+    this.emit('layer:move', {
+      layer,
+      from: location.index,
+      to: target,
+      parentId: location.parent?.id ?? null
+    });
+    return target;
   }
 
   updateLayer(id, patch = {}) {
@@ -346,10 +362,15 @@ function normalizeContent(type, content) {
 }
 
 function findLayer(layers, id) {
-  for (const layer of layers) {
-    if (layer.id === id) return layer;
+  return findLayerLocation(layers, id)?.layer ?? null;
+}
+
+function findLayerLocation(layers, id, parent = null) {
+  for (let index = 0; index < layers.length; index += 1) {
+    const layer = layers[index];
+    if (layer.id === id) return { layer, index, siblings: layers, parent };
     if (layer.type === 'group') {
-      const nested = findLayer(layer.children, id);
+      const nested = findLayerLocation(layer.children, id, layer);
       if (nested) return nested;
     }
   }
@@ -380,7 +401,13 @@ function documentDimension(value, fallback) {
   return Math.max(1, positiveInteger(value, fallback));
 }
 
-function clampIndex(index, length) {
+function clampInsertIndex(index, length) {
+  const number = Math.trunc(Number(index));
+  if (!Number.isFinite(number)) return length;
+  return Math.min(Math.max(0, number), length);
+}
+
+function clampMoveIndex(index, length) {
   const number = Math.trunc(Number(index));
   if (!Number.isFinite(number)) return Math.max(0, length - 1);
   return Math.min(Math.max(0, number), Math.max(0, length - 1));
