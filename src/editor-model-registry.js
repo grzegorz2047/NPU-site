@@ -42,6 +42,69 @@ export const BUILTIN_IMAGE_MODELS = Object.freeze([
       webgpu: { supported: true, ioBinding: false, note: 'Transformers.js depth-estimation pipeline' },
       wasm: { supported: true, ioBinding: false, note: 'Transformers.js WASM' }
     }
+  },
+  {
+    id: 'swin2sr-lightweight-x2',
+    name: 'Swin2SR lightweight 2×',
+    version: 'xenova-main-v1',
+    license: 'Apache-2.0',
+    repository: 'Xenova/swin2SR-lightweight-x2-64',
+    task: 'image-to-image',
+    inputs: [{ name: 'image', kind: 'image', dtype: 'uint8', dynamic: true }],
+    outputs: [{ name: 'image', kind: 'image', dtype: 'uint8', dynamic: true, scale: 2 }],
+    preprocessing: { resize: 'none', padMultiple: 8, rescale: 1 / 255 },
+    artifacts: {
+      webgpu: 'Xenova/swin2SR-lightweight-x2-64',
+      wasm: 'Xenova/swin2SR-lightweight-x2-64'
+    },
+    compatibility: {
+      npu: { supported: false, ioBinding: false, note: 'WebNN/NPU operator contract has not been physically verified' },
+      webgpu: { supported: true, ioBinding: false, note: 'Transformers.js image-to-image, fp16' },
+      wasm: { supported: true, ioBinding: false, note: 'Transformers.js image-to-image, q8' }
+    },
+    metadata: { restorationTask: 'super-resolution', outputScale: 2, quality: 'fast' }
+  },
+  {
+    id: 'swin2sr-realworld-x4',
+    name: 'Swin2SR real-world 4×',
+    version: 'onnx-community-main-v1',
+    license: 'Apache-2.0',
+    repository: 'onnx-community/swin2SR-realworld-sr-x4-64-bsrgan-psnr-ONNX',
+    task: 'image-to-image',
+    inputs: [{ name: 'image', kind: 'image', dtype: 'uint8', dynamic: true }],
+    outputs: [{ name: 'image', kind: 'image', dtype: 'uint8', dynamic: true, scale: 4 }],
+    preprocessing: { resize: 'none', padMultiple: 8, rescale: 1 / 255 },
+    artifacts: {
+      webgpu: 'onnx-community/swin2SR-realworld-sr-x4-64-bsrgan-psnr-ONNX',
+      wasm: 'onnx-community/swin2SR-realworld-sr-x4-64-bsrgan-psnr-ONNX'
+    },
+    compatibility: {
+      npu: { supported: false, ioBinding: false, note: 'WebNN/NPU operator contract has not been physically verified' },
+      webgpu: { supported: true, ioBinding: false, note: 'Transformers.js image-to-image, fp16' },
+      wasm: { supported: true, ioBinding: false, note: 'Transformers.js image-to-image, q8' }
+    },
+    metadata: { restorationTask: 'super-resolution', outputScale: 4, quality: 'quality' }
+  },
+  {
+    id: 'swin2sr-compressed-x4',
+    name: 'Swin2SR compressed restoration 4×',
+    version: 'xenova-main-v1',
+    license: 'Apache-2.0',
+    repository: 'Xenova/swin2SR-compressed-sr-x4-48',
+    task: 'image-to-image',
+    inputs: [{ name: 'image', kind: 'image', dtype: 'uint8', dynamic: true }],
+    outputs: [{ name: 'image', kind: 'image', dtype: 'uint8', dynamic: true, scale: 4 }],
+    preprocessing: { resize: 'none', padMultiple: 8, rescale: 1 / 255 },
+    artifacts: {
+      webgpu: 'Xenova/swin2SR-compressed-sr-x4-48',
+      wasm: 'Xenova/swin2SR-compressed-sr-x4-48'
+    },
+    compatibility: {
+      npu: { supported: false, ioBinding: false, note: 'WebNN/NPU operator contract has not been physically verified' },
+      webgpu: { supported: true, ioBinding: false, note: 'Transformers.js image-to-image, fp16' },
+      wasm: { supported: true, ioBinding: false, note: 'Transformers.js image-to-image, q8' }
+    },
+    metadata: { restorationTask: 'jpeg-restoration', outputScale: 4, preserveSize: true, quality: 'quality' }
   }
 ]);
 
