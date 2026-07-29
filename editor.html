@@ -10,6 +10,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.all.min.js" defer></script>
   <script type="module" src="./src/editor-app.js"></script>
+  <script type="module" src="./src/editor-workspace.js"></script>
 </head>
 <body>
   <header class="app-header">
@@ -26,6 +27,9 @@
     <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
     <button id="browse-button" class="command primary" type="button">Otwórz</button>
     <button id="sample-button" class="command" type="button">Przykład</button>
+    <span class="separator"></span>
+    <button id="undo-button" class="command command-icon" type="button" disabled aria-label="Cofnij" title="Brak operacji do cofnięcia">↶</button>
+    <button id="redo-button" class="command command-icon" type="button" disabled aria-label="Ponów" title="Brak operacji do ponowienia">↷</button>
     <span class="separator"></span>
     <button id="segment-button" class="command accent" type="button" disabled>Usuń tło</button>
     <button id="preset-cv" class="command" type="button" disabled>CV</button>
@@ -80,6 +84,25 @@
     <aside class="inspector" aria-label="Właściwości obrazu">
       <div class="inspector-title"><strong>Właściwości</strong><span>Local edit</span></div>
       <details class="inspector-section" open><summary>AI i dokument</summary><div class="section-body"><label>Akcelerator<select id="backend-select"><option value="auto">Auto: NPU → GPU → CPU</option><option value="npu">Tylko NPU / WebNN</option><option value="gpu">GPU / Transformers.js</option><option value="cpu">CPU / WASM</option></select></label><button id="init-button" class="panel-button" type="button">Uruchom silnik</button><div id="model-progress" class="progress-wrap" hidden><div class="progress-track"><span id="progress-bar"></span></div><span id="progress-text">Ładowanie modelu…</span></div><label class="file-field">Obraz tła<input id="background-input" type="file" accept="image/jpeg,image/png,image/webp" /></label></div></details>
+      <details class="inspector-section layers-section" open>
+        <summary>Warstwy</summary>
+        <div class="section-body layers-panel">
+          <div class="layer-property-grid">
+            <label>Tryb mieszania<select id="layer-blend-mode"><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select></label>
+            <label><span>Krycie <output id="layer-opacity-output">100%</output></span><input id="layer-opacity" type="range" min="0" max="100" value="100" /></label>
+          </div>
+          <div class="layers-heading"><span id="layers-selection">Brak zaznaczenia</span><small>Ctrl/Shift: wiele</small></div>
+          <div id="layers-list" class="layers-list" role="listbox" aria-label="Warstwy dokumentu"></div>
+          <div class="layer-actions" aria-label="Operacje na warstwach">
+            <button id="layer-add" class="panel-button" type="button" title="Nowa warstwa" aria-label="Nowa warstwa">＋</button>
+            <button id="layer-duplicate" class="panel-button" type="button" title="Duplikuj warstwę" aria-label="Duplikuj warstwę" disabled>⧉</button>
+            <button id="layer-remove" class="panel-button" type="button" title="Usuń warstwę" aria-label="Usuń warstwę" disabled>−</button>
+            <span></span>
+            <button id="layer-up" class="panel-button" type="button" title="Przesuń wyżej" aria-label="Przesuń wyżej" disabled>↑</button>
+            <button id="layer-down" class="panel-button" type="button" title="Przesuń niżej" aria-label="Przesuń niżej" disabled>↓</button>
+          </div>
+        </div>
+      </details>
       <details class="inspector-section" open><summary>Korekta</summary><div class="section-body slider-grid"><label><span>Jasność <output id="brightness-output">100%</output></span><input id="brightness" type="range" min="40" max="180" value="100" /></label><label><span>Kontrast <output id="contrast-output">100%</output></span><input id="contrast" type="range" min="40" max="180" value="100" /></label><label><span>Nasycenie <output id="saturation-output">100%</output></span><input id="saturation" type="range" min="0" max="200" value="100" /></label><label><span>Sepia <output id="sepia-output">0%</output></span><input id="sepia" type="range" min="0" max="100" value="0" /></label><label><span>Szarość <output id="grayscale-output">0%</output></span><input id="grayscale" type="range" min="0" max="100" value="0" /></label><label><span>Rozmycie <output id="blur-output">0 px</output></span><input id="blur" type="range" min="0" max="12" value="0" /></label></div></details>
       <details class="inspector-section"><summary>Tło i kompozycja</summary><div class="section-body"><label><span>Maksymalny bok <output id="max-edge-output">1400 px</output></span><input id="max-edge" type="range" min="600" max="2000" step="50" value="1400" /></label><label>Tryb tła<select id="background-mode"><option value="original">Oryginalne</option><option value="transparent">Przezroczyste</option><option value="solid">Jednolity kolor</option><option value="gradient">Gradient</option><option value="blur">Rozmycie tła</option><option value="image">Obraz użytkownika</option></select></label><div class="two-columns"><label>Kolor A<input id="bg-color-a" type="color" value="#f6f7fb" /></label><label>Kolor B<input id="bg-color-b" type="color" value="#dbe8ff" /></label></div><label><span>Rozmycie tła <output id="bg-blur-output">18 px</output></span><input id="bg-blur" type="range" min="0" max="40" value="18" /></label><div class="two-columns"><label>Obwódka<input id="outline-width" type="number" min="0" max="24" value="0" /></label><label>Cień<input id="shadow-strength" type="number" min="0" max="40" value="0" /></label></div></div></details>
       <details class="inspector-section"><summary>Redakcja danych</summary><div class="section-body"><label>Tryb<select id="redaction-mode"><option value="off">Wyłączone</option><option value="blur">Rozmycie</option><option value="pixelate">Pikselizacja</option><option value="black">Czarny pasek</option></select></label><label><span>Siła <output id="redaction-intensity-output">16</output></span><input id="redaction-intensity" type="range" min="4" max="40" value="16" /></label><div class="two-buttons"><button id="undo-redaction" class="panel-button" type="button">Cofnij</button><button id="clear-redactions" class="panel-button" type="button">Wyczyść</button></div><p class="hint">Wybierz tryb i przeciągnij prostokąt bezpośrednio po płótnie.</p></div></details>
