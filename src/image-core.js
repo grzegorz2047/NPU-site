@@ -1,7 +1,8 @@
 export const MODEL_SIZE=256;
+const FULL_MODEL='https://huggingface.co/onnx-community/modnet-webnn/resolve/main/onnx/model.onnx';
 export const MODEL_VARIANTS=Object.freeze({
- npu:{url:'https://huggingface.co/onnx-community/modnet-webnn/resolve/main/onnx/model.onnx',label:'MODNet FP32',download:'25.9 MB'},
- webgpu:{url:'https://huggingface.co/onnx-community/modnet-webnn/resolve/main/onnx/model_fp16.onnx',label:'MODNet FP16',download:'13 MB'},
+ npu:{url:FULL_MODEL,label:'MODNet FP32',download:'25.9 MB'},
+ webgpu:{url:FULL_MODEL,label:'MODNet FP32',download:'25.9 MB'},
  wasm:{url:'https://huggingface.co/onnx-community/modnet-webnn/resolve/main/onnx/model_quantized.onnx',label:'MODNet INT8',download:'6.6 MB'}
 });
 export function clamp(value,min=0,max=1){return Math.min(max,Math.max(min,Number(value)||0))}
