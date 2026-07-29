@@ -43,11 +43,12 @@ export class AdjustmentPanel {
     this.hslRange = 'master';
     this.curveDrag = null;
     this.histogramTask = null;
+    this.internalUpdate = false;
     ensureAdjustmentPanel(root);
     this.elements = this.resolveElements();
     this.bind();
-    this.unsubscribeDocument = documentModel.subscribe(() => this.refresh());
-    this.unsubscribeHistory = history.subscribe(() => this.refresh());
+    this.unsubscribeDocument = documentModel.subscribe(() => { if (!this.internalUpdate) this.refresh(); });
+    this.unsubscribeHistory = history.subscribe(() => { if (!this.internalUpdate) this.refresh(); });
     this.refreshPresets();
     this.refresh();
   }
@@ -134,13 +135,18 @@ export class AdjustmentPanel {
     const next = normalizeAdjustment(layer.metadata.adjustment ?? descriptor);
     setPath(next.parameters, path, value);
     const normalized = normalizeAdjustment(next);
-    this.history.execute(updateLayerCommand(layer.id, {
-      metadata: { adjustment: normalized }
-    }, {
-      label,
-      coalesceKey: coalesce ? `adjustment:${layer.id}:${path}` : null
-    }), this.documentModel);
-    this.renderer.render(this.documentModel);
+    this.internalUpdate = true;
+    try {
+      this.history.execute(updateLayerCommand(layer.id, {
+        metadata: { adjustment: normalized }
+      }, {
+        label,
+        coalesceKey: coalesce ? `adjustment:${layer.id}:${path}` : null
+      }), this.documentModel);
+      this.renderer.render(this.documentModel);
+    } finally {
+      this.internalUpdate = false;
+    }
   }
 
   refresh() {
@@ -214,15 +220,25 @@ export class AdjustmentPanel {
   }
 
   renderCurves(container, descriptor) { renderAdjustmentCurves(this, container, descriptor); }
+
   maskFromSelection() { createAdjustmentMaskFromSelection(this); }
+
   resetMask() { resetAdjustmentMask(this); }
+
   refreshPresets() { refreshAdjustmentPresets(this); }
+
   refreshPresetButtons() { refreshAdjustmentPresetButtons(this); }
+
   applyPreset() { applyAdjustmentPreset(this); }
+
   savePreset() { saveAdjustmentPreset(this); }
+
   deletePreset() { deleteAdjustmentPreset(this); }
+
   decorateLayerRows() { decorateAdjustmentLayerRows(this); }
+
   scheduleHistogram() { scheduleAdjustmentHistogram(this); }
+
   updateClippingOverlay() { updateAdjustmentClippingOverlay(this); }
 }
 
