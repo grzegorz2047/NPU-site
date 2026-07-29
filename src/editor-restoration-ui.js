@@ -16,6 +16,8 @@ export class RestorationController {
     ensureRestorationUi(root);
     this.elements = this.resolveElements();
     this.bind();
+    this.unsubscribeDocument = documentModel.subscribe(() => this.refresh());
+    this.unsubscribeQueue = this.engine.runtime?.queue?.subscribe(event => this.handleQueueEvent(event));
     this.refresh();
   }
 
@@ -41,6 +43,17 @@ export class RestorationController {
     e.beforeButton?.addEventListener('pointerdown', () => this.showPreview('before'));
     e.beforeButton?.addEventListener('pointerup', () => this.showPreview('after'));
     e.beforeButton?.addEventListener('pointercancel', () => this.showPreview('after'));
+  }
+
+  handleQueueEvent(event) {
+    if (!event?.task?.metadata?.restoration) return;
+    if (event.type === 'queued') this.setStatus('Zadanie restoration oczekuje w kolejce…');
+    if (event.type === 'started') this.setStatus(event.task.metadata.preview ? 'Uruchamianie podglądu 1:1…' : 'Uruchamianie finalnego renderu…');
+    if (event.type === 'progress') {
+      const progress = event.task.progress ?? {};
+      const percentage = Number.isFinite(Number(progress.progress)) ? ` · ${Math.round(progress.progress)}%` : '';
+      this.setStatus(`${progress.label || progress.stage || 'Przetwarzanie'}${percentage}`, progress.stage === 'fallback' ? 'warning' : 'neutral');
+    }
   }
 
   options() {
@@ -126,7 +139,7 @@ export class RestorationController {
     if (e.previewButton) e.previewButton.disabled = this.busy || !this.documentModel.layers.length;
     if (e.processButton) e.processButton.disabled = this.busy || !this.documentModel.layers.length;
     if (e.cancelButton) e.cancelButton.disabled = !this.busy;
-    if (e.profile) e.profile.disabled = this.busy;
+    for (const input of [e.profile, e.strength, e.sharpen, e.tileSize, e.overlap, e.localFallback]) if (input) input.disabled = this.busy;
   }
 
   refresh() {
@@ -149,7 +162,11 @@ export class RestorationController {
     this.elements.status.dataset.tone = tone;
   }
 
-  destroy() { this.engine.cancel(); }
+  destroy() {
+    this.unsubscribeDocument?.();
+    this.unsubscribeQueue?.();
+    this.engine.cancel();
+  }
 }
 
 export function ensureRestorationUi(root = document) {
@@ -166,7 +183,7 @@ export function ensureRestorationUi(root = document) {
     <label><span>Wyostrzenie po wyniku <output id="restoration-sharpen-output">20%</output></span><input id="restoration-sharpen" type="range" min="0" max="100" value="20" /></label>
     <label class="restoration-check"><input id="restoration-local-fallback" type="checkbox" checked /> Użyj lokalnego fallbacku, gdy model nie działa</label>
     <div class="restoration-actions"><button id="restoration-preview" class="panel-button" type="button">Podgląd 1:1</button><button id="restoration-process" class="panel-button" type="button">Nowa warstwa</button><button id="restoration-cancel" class="panel-button" type="button" disabled>Anuluj</button></div>
-    <p id="restoration-status" class="restoration-status">Podgląd przetwarza tylko zaznaczenie lub środkowy fragment.</p>
+    <p id="restoration-status" class="restoration-status" aria-live="polite">Podgląd przetwarza tylko zaznaczenie lub środkowy fragment.</p>
     <p id="restoration-report" class="hint">Brak ostatniego raportu.</p>
     <div id="restoration-preview-wrap" class="restoration-preview-wrap" hidden><canvas id="restoration-preview-canvas" width="256" height="256" aria-label="Podgląd restoration 1:1"></canvas><div class="restoration-compare"><button id="restoration-before" class="panel-button" type="button">Przed</button><button id="restoration-after" class="panel-button" type="button">Po</button><button id="restoration-difference" class="panel-button" type="button">Różnica</button></div></div>
     <details class="restoration-advanced"><summary>Zaawansowane kafelki</summary><div><label>Rozmiar kafelka<select id="restoration-tile-size"><option value="192">192 px</option><option value="256" selected>256 px</option><option value="384">384 px</option><option value="512">512 px</option></select></label><label>Overlap<select id="restoration-overlap"><option value="16">16 px</option><option value="24" selected>24 px</option><option value="32">32 px</option><option value="48">48 px</option></select></label></div></details>
