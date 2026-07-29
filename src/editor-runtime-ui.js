@@ -58,9 +58,9 @@ export class RuntimeDiagnosticsPanel {
         : pendingCount ? `W kolejce: ${pendingCount}` : 'Kolejka pusta';
     }
     if (this.elements.ioBinding) {
-      const npuSession = diagnostics.sessions.some(key => key.endsWith(':npu'));
+      const npuSession = diagnostics.sessionDetails?.find(session => session.key.endsWith(':npu'));
       this.elements.ioBinding.textContent = npuSession
-        ? 'Sesja NPU aktywna; IO binding jest używany, gdy runtime przeglądarki go udostępnia.'
+        ? npuSession.ioBinding ? 'Sesja NPU aktywna; API IO binding / MLTensor jest dostępne.' : 'Sesja NPU aktywna; API IO binding nie jest dostępne w tym runtime.'
         : 'IO binding: oczekuje na zgodną sesję NPU.';
     }
     this.renderModels(diagnostics.compatibility);
