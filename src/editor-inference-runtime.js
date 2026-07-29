@@ -39,7 +39,13 @@ export class ImageInferenceRuntime {
     for (const backend of candidates) {
       try {
         const session = await this.getSession(model, backend, { signal, benchmark, onProgress });
-        const report = benchmark.report({ actualBackend: backend, initialization: true });
+        const report = benchmark.report({
+          actualBackend: backend,
+          initialization: true,
+          fallbackUsed: backend !== candidates[0],
+          attempts: failures.map(item => ({ backend: item.backend, error: item.error instanceof Error ? item.error.message : String(item.error) }))
+        });
+        this.lastReport = report;
         this.emit('initialized', { model, backend, report, ioBinding: Boolean(session.ioBinding) });
         return { model, backend, report, ioBinding: Boolean(session.ioBinding) };
       } catch (error) {
@@ -79,7 +85,11 @@ export class ImageInferenceRuntime {
         const result = tiled
           ? await this.runTiled(session, model, input, tiled, { signal, benchmark, onProgress })
           : await this.runSingle(session, model, input, { signal, benchmark, onProgress, preview });
-        this.lastReport = benchmark.report({ actualBackend: backend, fallbackUsed: backend !== candidates[0] });
+        this.lastReport = benchmark.report({
+          actualBackend: backend,
+          fallbackUsed: backend !== candidates[0],
+          attempts: failures.map(item => ({ backend: item.backend, error: item.error instanceof Error ? item.error.message : String(item.error) }))
+        });
         const payload = { model, backend, result, benchmark: this.lastReport };
         this.emit('completed', payload);
         return payload;
@@ -112,7 +122,7 @@ export class ImageInferenceRuntime {
     const height = options.height ?? input.height;
     if (!width || !height) throw new Error('Inferencja kafelkowa wymaga wymiarów obrazu.');
     const channels = options.channels ?? 1;
-    return benchmark.measure('postprocessing', async () => runTiledInference({
+    const tiledResult = await runTiledInference({
       width,
       height,
       tileSize: options.tileSize,
@@ -125,7 +135,9 @@ export class ImageInferenceRuntime {
         const payload = await this.runSingle(session, model, tileInput, { signal, benchmark, onProgress: () => {}, preview: false });
         return options.mapOutput ? options.mapOutput(payload, tile) : payload;
       }
-    }));
+    });
+    benchmark.add('postprocessing', tiledResult.stitchDurationMs, { operation: 'stitch-tiles', tiles: tiledResult.plan.tiles.length });
+    return tiledResult;
   }
 
   async getSession(model, backend, { signal, benchmark, onProgress }) {
@@ -164,6 +176,7 @@ export class ImageInferenceRuntime {
       capabilities: this.capabilities(),
       compatibility: this.compatibilityMatrix(),
       sessions: [...this.sessions.keys()],
+      sessionDetails: [...this.sessions.entries()].map(([key, session]) => ({ key, ioBinding: Boolean(session.ioBinding) })),
       queue: this.queue.snapshot(),
       lastReport: this.lastReport
     };
