@@ -1,4 +1,4 @@
-const CACHE = 'localsafe-shell-v30';
+const CACHE = 'localsafe-shell-v31';
 const SHELL = [
   './',
   './index.html',
@@ -18,6 +18,7 @@ const SHELL = [
   './editor-smart-select.css',
   './editor-depth.css',
   './editor-restoration.css',
+  './editor-inspector.css',
   './hub.css',
   './src/editor-app.js',
   './src/editor-runtime.js',
@@ -36,6 +37,7 @@ const SHELL = [
   './src/editor-adjustments-ui-advanced.js',
   './src/editor-adjustments-ui.js',
   './src/editor-adjustments-bootstrap.js',
+  './src/editor-inspector-nav.js',
   './src/editor-retouch.js',
   './src/editor-retouch-processor.js',
   './src/editor-retouch-worker.js',
