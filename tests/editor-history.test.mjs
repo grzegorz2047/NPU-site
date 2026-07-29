@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEditorDocument, createRasterLayer } from '../src/editor-document.js';
+import { createEditorDocument, createGroupLayer, createRasterLayer } from '../src/editor-document.js';
 import {
   addLayerCommand,
   CommandHistory,
@@ -46,6 +46,36 @@ test('tracks duplicate and layer order commands', () => {
   assert.equal(documentModel.layers[1].id, duplicateId);
   history.undo(documentModel);
   assert.equal(documentModel.layers.length, 1);
+});
+
+test('tracks nested group operations without moving children to the root', () => {
+  const documentModel = createEditorDocument({
+    width: 100,
+    height: 100,
+    layers: [createGroupLayer({ id: 'group', children: [createRasterLayer({ id: 'a' }), createRasterLayer({ id: 'b' })] })]
+  });
+  const history = new CommandHistory();
+
+  history.execute(addLayerCommand(createRasterLayer({ id: 'nested' }), 1, 'group'), documentModel);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), ['a', 'nested', 'b']);
+  history.execute(duplicateLayerCommand('nested'), documentModel);
+  const duplicateId = documentModel.getLayer('group').children[2].id;
+  assert.equal(documentModel.layers.length, 1);
+  history.execute(moveLayerCommand(duplicateId, 0), documentModel);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), [duplicateId, 'a', 'nested', 'b']);
+  history.execute(removeLayerCommand('nested'), documentModel);
+  assert.equal(documentModel.getLayer('nested'), null);
+
+  history.undo(documentModel);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), [duplicateId, 'a', 'nested', 'b']);
+  history.undo(documentModel);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), ['a', 'nested', duplicateId, 'b']);
+  history.undo(documentModel);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), ['a', 'nested', 'b']);
+  history.undo(documentModel);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), ['a', 'b']);
+  history.redo(documentModel);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), ['a', 'nested', 'b']);
 });
 
 test('tracks visibility, opacity, name, lock and transform changes', () => {
