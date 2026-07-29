@@ -8,8 +8,11 @@ Zestaw prywatnych narzędzi działających lokalnie w przeglądarce. Dane nie s�
 
 ### Skaner prywatności — `/`
 
-Przed wysłaniem wiadomości, logu, promptu lub fragmentu dokumentu wykrywa:
+Przed wysłaniem wiadomości, logu, promptu lub fragmentu dokumentu łączy lokalną analizę semantyczną z walidowanymi regułami. Wykrywa między innymi:
 
+- dane tożsamościowe, adresy i nazwy osób,
+- informacje medyczne, diagnozy i nazwy leków,
+- wynagrodzenia i inne dane finansowe,
 - adresy e-mail i telefony,
 - PESEL,
 - numery rachunków / IBAN,
@@ -19,6 +22,15 @@ Przed wysłaniem wiadomości, logu, promptu lub fragmentu dokumentu wykrywa:
 
 PESEL, IBAN i karty są sprawdzane sumami kontrolnymi. Każde znalezisko wskazuje linię i kolumnę. Aplikacja tworzy zanonimizowaną kopię, zastępując wyłącznie wykryte wartości.
 
+#### Własne reguły
+
+Na stronie można jawnie dodać własną regułę anonimizacji w jednym z dwóch trybów:
+
+- **tekst dokładny** — znaki specjalne są automatycznie escapowane,
+- **RegExp** — użytkownik podaje własne wyrażenie regularne.
+
+Każda reguła ma nazwę, wzorzec, maskę zastępczą i opcję ignorowania wielkości liter. Reguły można włączać, wyłączać i usuwać. Są przechowywane wyłącznie w `localStorage` bieżącej przeglądarki.
+
 ### Audyt umów — `/contract.html`
 
 Użytkownik dodaje PDF, DOCX lub tekst i zadaje normalne pytania, np. „Jakie są pułapki w umowie?”. Odpowiedź wskazuje ryzyka, ich znaczenie oraz stronę i linie dokumentu. Automatyczna checklista obejmuje czas trwania, wypowiedzenie, opłaty, kary, odpowiedzialność, obowiązki, dane osobowe i spory.
@@ -27,21 +39,22 @@ Użytkownik dodaje PDF, DOCX lub tekst i zadaje normalne pytania, np. „Jakie s
 
 ## Intel NPU
 
-Audyt umów korzysta z ONNX Runtime Web i w trybie automatycznym próbuje kolejno:
+Narzędzia korzystają z ONNX Runtime Web. Użytkownik może wybrać model oraz akcelerator:
 
 1. Intel NPU / WebNN,
 2. WebGPU,
 3. WebAssembly na CPU.
 
-Skaner prywatności jest deterministyczny i działa natychmiast bez pobierania modelu. NPU ma zastosowanie w semantycznym indeksowaniu i odpytywaniu umów.
+Tryb automatyczny próbuje dostępnych backendów kolejno. Tryb „Tylko NPU” nie używa cichego fallbacku na CPU.
 
 ## Prywatność
 
 - brak backendu, kont i analityki,
 - tekst skanera pozostaje w pamięci bieżącej karty,
+- własne reguły pozostają w `localStorage`,
 - dokumenty audytu i wektory są przechowywane w IndexedDB,
 - treść użytkownika nie jest wysyłana do CDN ani Hugging Face,
-- model i biblioteki audytu są pobierane niezależnie od treści dokumentów.
+- model i biblioteki są pobierane niezależnie od treści dokumentów.
 
 ## Uruchomienie lokalne
 
@@ -57,4 +70,4 @@ Otwórz `http://localhost:4173`.
 npm test
 ```
 
-Testy obejmują ranking dokumentów, lokalizacje źródeł, odpowiedzi konwersacyjne oraz wykrywanie, walidację i anonimizację danych wrażliwych.
+Testy obejmują ranking dokumentów, lokalizacje źródeł, odpowiedzi konwersacyjne, modele wejściowe ONNX oraz wykrywanie, walidację i anonimizację danych wrażliwych — w tym własne reguły użytkownika.
