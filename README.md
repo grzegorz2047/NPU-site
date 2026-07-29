@@ -22,6 +22,15 @@ Przed wysłaniem wiadomości, logu, promptu lub fragmentu dokumentu łączy loka
 
 PESEL, IBAN i karty są sprawdzane sumami kontrolnymi. Każde znalezisko wskazuje linię i kolumnę. Aplikacja tworzy zanonimizowaną kopię, zastępując wyłącznie wykryte wartości.
 
+#### Jawny katalog reguł wbudowanych
+
+Strona pokazuje wszystkie aktywne reguły wbudowane w dwóch grupach:
+
+- **walidowane formaty** — tokeny, PESEL, IBAN, karty, e-mail, IPv4 i telefon,
+- **NPU + ekstrakcja zakresu** — osoba, miejscowość, adres, informacja medyczna, lek i kwota.
+
+Każda pozycja pokazuje opis formatu, używaną maskę i sposób walidacji. Reguły wbudowane są tylko do odczytu: nie można ich edytować, wyłączać ani usuwać. Lista jest generowana z tych samych definicji, których używa skaner.
+
 #### Własne reguły
 
 Na stronie można jawnie dodać własną regułę anonimizacji w jednym z dwóch trybów:
@@ -70,4 +79,4 @@ Otwórz `http://localhost:4173`.
 npm test
 ```
 
-Testy obejmują ranking dokumentów, lokalizacje źródeł, odpowiedzi konwersacyjne, modele wejściowe ONNX oraz wykrywanie, walidację i anonimizację danych wrażliwych — w tym własne reguły użytkownika.
+Testy obejmują ranking dokumentów, lokalizacje źródeł, odpowiedzi konwersacyjne, modele wejściowe ONNX oraz wykrywanie, walidację i anonimizację danych wrażliwych — w tym katalog reguł wbudowanych i własne reguły użytkownika.
