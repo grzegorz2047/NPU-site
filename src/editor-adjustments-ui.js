@@ -188,7 +188,7 @@ export class AdjustmentPanel {
   renderLevels(container, descriptor) {
     container.append(createSelectControl('Kanał', CURVE_CHANNELS, this.levelChannel, CHANNEL_LABELS, value => {
       this.levelChannel = value;
-      this.renderControls(descriptor);
+      this.renderControls(this.activeLayer ? normalizeAdjustment(this.activeLayer.metadata.adjustment) : descriptor);
     }));
     const fields = {
       inputBlack: { label: 'Czerń wejścia', min: 0, max: 254, step: 1 },
@@ -206,7 +206,7 @@ export class AdjustmentPanel {
   renderHsl(container, descriptor) {
     container.append(createSelectControl('Zakres koloru', HSL_RANGES, this.hslRange, RANGE_LABELS, value => {
       this.hslRange = value;
-      this.renderControls(descriptor);
+      this.renderControls(this.activeLayer ? normalizeAdjustment(this.activeLayer.metadata.adjustment) : descriptor);
     }));
     const fields = {
       hue: { label: 'Odcień', min: -180, max: 180, step: 1 },
