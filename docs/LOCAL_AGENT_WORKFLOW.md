@@ -130,6 +130,8 @@ PY
 
 Przed użyciem zrzutu jako dowodu otwórz go i sprawdź, czy nie przedstawia pustej strony, błędu, niedokończonego ładowania lub niewłaściwego okna.
 
+Jeżeli nawigacja do `localhost` lub `127.0.0.1` kończy się `ERR_BLOCKED_BY_ADMINISTRATOR`, zapisz ten blocker. Do samej oceny układu można wtedy zbudować z aktualnych plików repo source-derived harness i wyrenderować go przez `page.set_content(...)`. Taki zrzut wolno opisać wyłącznie jako wizualną kontrolę układu; nie jest to pełny test aplikacji, modułów ES, Service Workera, importu obrazu ani inferencji.
+
 ## 7. Zakres audytu UX
 
 Dla zmian edytora wykonaj co najmniej:
