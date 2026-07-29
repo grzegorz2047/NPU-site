@@ -1,0 +1,3 @@
+import test from'node:test';import assert from'node:assert/strict';import{splitUnits,categoryLabel}from'../src/sensitivity-engine.js';
+test('splitUnits preserves trimmed offsets and line numbers',()=>{const text='  Jan Kowalski\n\nDiagnoza: nadciśnienie';const units=splitUnits(text);assert.deepEqual(units.map(x=>({text:x.text,line:x.line,start:x.start,end:x.end})),[{text:'Jan Kowalski',line:1,start:2,end:14},{text:'Diagnoza: nadciśnienie',line:3,start:16,end:38}])});
+test('category labels are localized',()=>{assert.equal(categoryLabel('medical','pl'),'Dane medyczne');assert.equal(categoryLabel('financial','en'),'Financial data')});
