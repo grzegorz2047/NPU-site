@@ -6,9 +6,13 @@ Zestaw prywatnych narzędzi AI działających lokalnie w przeglądarce. Obrazy, 
 
 ## Narzędzia
 
-### LocalStudio NPU — `/`
+### Ekran startowy — `/`
 
-Pełnosprawny lokalny edytor obrazu, a nie pojedyncze demo technologiczne. Umożliwia:
+Strona główna jest lekkim katalogiem narzędzi. Nie ładuje modelu ani runtime'u edytora, dopóki użytkownik nie przejdzie do konkretnej podstrony.
+
+### LocalStudio NPU — `/editor.html`
+
+Pełnosprawny lokalny edytor obrazu w kompaktowym układzie typu desktopowego. Umożliwia:
 
 - import JPG, PNG i WebP,
 - korektę jasności, kontrastu, nasycenia, sepii, skali szarości i rozmycia,
