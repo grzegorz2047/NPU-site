@@ -41,10 +41,12 @@ Model edytora jest niezależny od DOM i rozdzielony na moduły:
 - `src/editor-canvas-commands.js` — crop, resize, prowadnice i transformacje z undo/redo,
 - `src/editor-canvas-ui.js` — kontrolki nawigacji i transformacji montowane bez przebudowy legacy HTML,
 - `src/editor-canvas-controller.js` — zoom/pan, interakcje płótna, linijki i podglądy zatwierdzania,
-- `src/editor-workspace.js` — integracja modelu z istniejącym pipeline'em AI i eksportem,
+- `src/editor-workspace.js` — integracja nowego modelu z istniejącym pipeline'em AI i eksportem,
 - `src/editor-project-format.js` — wersjonowany format `.localstudio`, walidacja i migracje,
 - `src/editor-project-store.js` — IndexedDB, trwałe bloby, lista projektów i journal odzyskiwania,
 - `src/editor-project-controller.js` — autosave, import/eksport projektu i ostrzeżenie o niezapisanych zmianach.
+
+Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'u pozostaje zgodny z presetami, korektami, MODNet, podmianą tła i redakcją, a kolejne wyniki AI mogą być dodawane jako osobna warstwa lub maska.
 
 #### Nawigacja i transformacje płótna
 
@@ -64,23 +66,40 @@ Model edytora jest niezależny od DOM i rozdzielony na moduły:
 - projekt można pobrać jako `.localstudio` i ponownie zaimportować,
 - nowsza, nieobsługiwana wersja formatu daje czytelny komunikat zamiast częściowego otwarcia.
 
+#### Przykłady użycia
+
+- **Zdjęcie do CV:** wczytaj zdjęcie, użyj presetu CV, sprawdź maskę i pobierz JPEG.
+- **Sticker:** wytnij tło, dodaj obwódkę i cień, pobierz PNG.
+- **Anonimizowany screenshot:** wybierz tryb redakcji, zaznacz dane i pobierz gotowy obraz.
+
 ### Skaner prywatności — `/privacy.html`
 
-Łączy lokalną analizę semantyczną z walidowanymi regułami i wykrywa dane wrażliwe bez wysyłania treści do chmury.
+Łączy lokalną analizę semantyczną z walidowanymi regułami. Wykrywa dane tożsamościowe, adresy, informacje medyczne, wynagrodzenia, e-mail, telefon, PESEL, IBAN, karty, IPv4 oraz popularne formaty kluczy API i tokenów. Reguły wbudowane są jawne i tylko do odczytu, a użytkownik może dodawać własne reguły.
 
 ### Audyt umów — `/contract.html`
 
-Użytkownik dodaje PDF, DOCX lub tekst i pyta o pułapki w umowie. Odpowiedź wskazuje ryzyka oraz konkretne strony i linie dokumentu.
+Użytkownik dodaje PDF, DOCX lub tekst i pyta o pułapki w umowie. Odpowiedź wskazuje ryzyka, ich znaczenie oraz konkretne strony i linie dokumentu.
+
+### Weryfikowalny przykład audytu — `/example.html`
+
+Przykład używa tego samego modułu odpowiedzi co właściwy audyt i pokazuje źródła dla wykrytych ryzyk.
 
 ## Intel NPU i backendy
 
-Segmentacja obrazu korzysta z modelu `onnx-community/modnet-webnn`: Intel NPU przez WebNN, WebGPU albo WebAssembly na CPU. Tryb automatyczny próbuje backendów kolejno i pokazuje faktycznie uruchomiony runtime.
+Segmentacja obrazu korzysta z modelu `onnx-community/modnet-webnn`. Dostępne ścieżki:
+
+1. Intel NPU przez WebNN,
+2. WebGPU przez Transformers.js,
+3. WebAssembly na CPU przez Transformers.js.
+
+Tryb automatyczny próbuje backendów kolejno. Interfejs pokazuje runtime, który rzeczywiście został uruchomiony.
 
 ## Prywatność
 
 - brak backendu, kont i analityki,
-- obrazy i tekst pozostają lokalnie,
-- projekty edytora, dokumenty audytu i wektory są przechowywane w IndexedDB.
+- obrazy i tekst pozostają w pamięci przeglądarki,
+- dokumenty audytu i wektory są przechowywane lokalnie w IndexedDB,
+- modele i biblioteki są pobierane niezależnie od danych użytkownika.
 
 ## Uruchomienie lokalne
 
@@ -96,4 +115,4 @@ Otwórz `http://localhost:4173`.
 npm test
 ```
 
-Testy obejmują kompozycję obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, dokument i warstwy, undo/redo, `.localstudio`, autosave, maski, backendy NPU/GPU/CPU, ranking dokumentów i wykrywanie danych wrażliwych.
+Testy obejmują rdzeń kompozycji obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.

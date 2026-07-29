@@ -1,5 +1,294 @@
 import { bilinearPoint, perspectiveQuad } from './editor-canvas-geometry.js';
-export const COMPOSITE_OPERATIONS=Object.freeze({normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay'});export function resolveCompositeOperation(blendMode){return COMPOSITE_OPERATIONS[blendMode]??COMPOSITE_OPERATIONS.normal}export function buildRenderPlan(document){const plan=[];const visit=(layers,inherited={})=>{for(const layer of layers){if(!layer.visible||layer.opacity<=0)continue;if(layer.type==='group'){visit(layer.children,{opacity:(inherited.opacity??1)*layer.opacity,groupPath:[...(inherited.groupPath??[]),layer.id]});continue}plan.push({layer,layerId:layer.id,type:layer.type,opacity:(inherited.opacity??1)*layer.opacity,blendMode:layer.blendMode,compositeOperation:resolveCompositeOperation(layer.blendMode),groupId:inherited.groupPath?.at(-1)??null,groupPath:inherited.groupPath??[]})}};visit(document.layers);return plan}
-export class CanvasDocumentRenderer{constructor({canvas,createCanvas=defaultCreateCanvas,assetResolver=null}={}){if(!canvas?.getContext)throw new TypeError('Renderer wymaga głównego canvasa.');this.canvas=canvas;this.createCanvas=createCanvas;this.assetResolver=assetResolver}resize(width,height){if(this.canvas.width!==width)this.canvas.width=width;if(this.canvas.height!==height)this.canvas.height=height}render(document,options={}){this.resize(document.width,document.height);const context=this.canvas.getContext('2d');if(!context)throw new Error('Nie można uzyskać kontekstu 2D.');context.save?.();context.setTransform?.(1,0,0,1,0,0);context.globalAlpha=1;context.globalCompositeOperation='source-over';if(options.clear!==false)context.clearRect(0,0,document.width,document.height);const renderedLayerIds=[];this.renderLayerCollection(document.layers,document,context,renderedLayerIds);context.restore?.();return{plan:buildRenderPlan(document),renderedLayerIds}}renderLayerCollection(layers,document,context,renderedLayerIds){const renderedById=new Map;let previousBaseId=null;for(const layer of layers){if(!layer.visible||layer.opacity<=0)continue;const layerCanvas=this.renderLayer(layer,document,renderedLayerIds);if(!layerCanvas)continue;let composited=layerCanvas;if(layer.clipping?.enabled){const baseId=layer.clipping.baseLayerId??previousBaseId,baseCanvas=baseId?renderedById.get(baseId):null;if(baseCanvas)composited=this.applyAlphaSource(layerCanvas,baseCanvas,false,1)}else previousBaseId=layer.id;context.save?.();context.globalAlpha=layer.opacity;context.globalCompositeOperation=resolveCompositeOperation(layer.blendMode);context.drawImage(composited,0,0);context.restore?.();renderedById.set(layer.id,composited);renderedLayerIds.push(layer.id)}return renderedById}renderLayer(layer,document,renderedLayerIds=[]){let canvas=this.createCanvas(document.width,document.height);const context=canvas.getContext('2d');if(!context)return null;if(layer.type==='group'){this.renderLayerCollection(layer.children,document,context,renderedLayerIds);if(!isIdentityTransform(layer.transform)){const transformed=this.createCanvas(document.width,document.height),transformedContext=transformed.getContext('2d');transformedContext.save?.();applyTransform(transformedContext,layer.transform);transformedContext.drawImage(canvas,0,0);transformedContext.restore?.();canvas=transformed}}else{context.save?.();applyTransform(context,layer.transform);this.drawLayerContent(context,layer,document);context.restore?.()}if(layer.mask?.enabled&&layer.mask.assetId){const maskAsset=this.resolveAsset(layer.mask.assetId,document);if(maskAsset)return this.applyAlphaSource(canvas,maskAsset,layer.mask.inverted,layer.mask.opacity)}return canvas}drawLayerContent(context,layer,document){if(layer.type==='raster'){const source=this.resolveAsset(layer.content.assetId,document);if(!source)return;const width=layer.content.width||source.width||document.width,height=layer.content.height||source.height||document.height,interpolation=layer.metadata?.interpolation??document.metadata?.interpolation??'high';context.imageSmoothingEnabled=interpolation!=='nearest';if(context.imageSmoothingEnabled)context.imageSmoothingQuality=['low','medium','high'].includes(interpolation)?interpolation:'high';const px=Number(layer.transform?.perspectiveX)||0,py=Number(layer.transform?.perspectiveY)||0;if(px||py)drawPerspectiveImage(context,source,width,height,px,py);else context.drawImage(source,0,0,width,height);return}if(layer.type==='text'){const c=layer.content;context.fillStyle=c.color;context.font=`${c.fontWeight} ${c.fontSize}px ${c.fontFamily}`;context.textAlign=c.align;context.textBaseline='top';if(c.maxWidth>0)context.fillText(c.text,0,0,c.maxWidth);else context.fillText(c.text,0,0);return}if(layer.type==='shape')drawShape(context,layer.content)}resolveAsset(assetId,document){if(!assetId)return null;if(this.assetResolver)return this.assetResolver(assetId,document);return document.getRuntimeAsset?.(assetId)??null}applyAlphaSource(source,maskSource,inverted=false,opacity=1){const output=this.createCanvas(source.width,source.height),context=output.getContext('2d');context.drawImage(source,0,0);context.save?.();context.globalCompositeOperation=inverted?'destination-out':'destination-in';context.globalAlpha=Math.min(1,Math.max(0,Number(opacity)||0));context.drawImage(maskSource,0,0,source.width,source.height);context.restore?.();return output}}
-export function applyTransform(context,transform={}){const x=Number(transform.x)||0,y=Number(transform.y)||0,originX=Number(transform.originX)||0,originY=Number(transform.originY)||0,rotation=(Number(transform.rotation)||0)*Math.PI/180,scaleX=Number.isFinite(Number(transform.scaleX))?Number(transform.scaleX):1,scaleY=Number.isFinite(Number(transform.scaleY))?Number(transform.scaleY):1,skewX=(Number(transform.skewX)||0)*Math.PI/180,skewY=(Number(transform.skewY)||0)*Math.PI/180;context.translate?.(x+originX,y+originY);if(rotation)context.rotate?.(rotation);if((skewX||skewY)&&context.transform)context.transform(1,Math.tan(skewY),Math.tan(skewX),1,0,0);context.scale?.(scaleX,scaleY);context.translate?.(-originX,-originY)}function isIdentityTransform(t={}){return!Number(t.x)&&!Number(t.y)&&!Number(t.rotation)&&!Number(t.skewX)&&!Number(t.skewY)&&!Number(t.perspectiveX)&&!Number(t.perspectiveY)&&(t.scaleX??1)===1&&(t.scaleY??1)===1}function drawShape(context,c){context.beginPath?.();if(c.shape==='ellipse')context.ellipse?.(c.width/2,c.height/2,c.width/2,c.height/2,0,0,Math.PI*2);else if(c.shape==='line'){context.moveTo?.(0,0);context.lineTo?.(c.width,c.height)}else if(c.radius>0&&context.roundRect)context.roundRect(0,0,c.width,c.height,c.radius);else context.rect?.(0,0,c.width,c.height);if(c.fill){context.fillStyle=c.fill;context.fill?.()}if(c.stroke&&c.strokeWidth>0){context.strokeStyle=c.stroke;context.lineWidth=c.strokeWidth;context.stroke?.()}}
-export function drawPerspectiveImage(context,source,width,height,perspectiveX=0,perspectiveY=0,subdivisions=12){const columns=Math.max(2,Math.min(32,Math.round(subdivisions))),rows=columns,quad=perspectiveQuad(width,height,perspectiveX,perspectiveY),sw=Number(source.width||source.naturalWidth)||width,sh=Number(source.height||source.naturalHeight)||height;for(let row=0;row<rows;row++){const v0=row/rows,v1=(row+1)/rows;for(let column=0;column<columns;column++){const u0=column/columns,u1=(column+1)/columns,s00={x:u0*sw,y:v0*sh},s10={x:u1*sw,y:v0*sh},s11={x:u1*sw,y:v1*sh},s01={x:u0*sw,y:v1*sh},d00=bilinearPoint(quad,u0,v0),d10=bilinearPoint(quad,u1,v0),d11=bilinearPoint(quad,u1,v1),d01=bilinearPoint(quad,u0,v1);drawTexturedTriangle(context,source,[s00,s10,s11],[d00,d10,d11]);drawTexturedTriangle(context,source,[s00,s11,s01],[d00,d11,d01])}}}function drawTexturedTriangle(context,source,sourceTriangle,destinationTriangle){const matrix=affineFromTriangles(sourceTriangle,destinationTriangle);if(!matrix)return;context.save?.();context.beginPath?.();context.moveTo?.(destinationTriangle[0].x,destinationTriangle[0].y);context.lineTo?.(destinationTriangle[1].x,destinationTriangle[1].y);context.lineTo?.(destinationTriangle[2].x,destinationTriangle[2].y);context.closePath?.();context.clip?.();context.transform?.(...matrix);context.drawImage(source,0,0);context.restore?.()}function affineFromTriangles(source,destination){const[s0,s1,s2]=source,[d0,d1,d2]=destination,det=s0.x*(s1.y-s2.y)+s1.x*(s2.y-s0.y)+s2.x*(s0.y-s1.y);if(Math.abs(det)<1e-10)return null;const solve=values=>[(values[0]*(s1.y-s2.y)+values[1]*(s2.y-s0.y)+values[2]*(s0.y-s1.y))/det,(values[0]*(s2.x-s1.x)+values[1]*(s0.x-s2.x)+values[2]*(s1.x-s0.x))/det,(values[0]*(s1.x*s2.y-s2.x*s1.y)+values[1]*(s2.x*s0.y-s0.x*s2.y)+values[2]*(s0.x*s1.y-s1.x*s0.y))/det];const[a,c,e]=solve(destination.map(p=>p.x)),[b,d,f]=solve(destination.map(p=>p.y));return[a,b,c,d,e,f]}function defaultCreateCanvas(width,height){if(typeof OffscreenCanvas!=='undefined')return new OffscreenCanvas(width,height);if(typeof document!=='undefined'){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;return canvas}throw new Error('Brak implementacji canvasa. Przekaż createCanvas do renderera.')}
+
+export const COMPOSITE_OPERATIONS = Object.freeze({
+  normal: 'source-over',
+  multiply: 'multiply',
+  screen: 'screen',
+  overlay: 'overlay'
+});
+
+export function resolveCompositeOperation(blendMode) {
+  return COMPOSITE_OPERATIONS[blendMode] ?? COMPOSITE_OPERATIONS.normal;
+}
+
+export function buildRenderPlan(document) {
+  const plan = [];
+  const visit = (layers, inherited = {}) => {
+    for (const layer of layers) {
+      if (!layer.visible || layer.opacity <= 0) continue;
+      if (layer.type === 'group') {
+        visit(layer.children, {
+          opacity: (inherited.opacity ?? 1) * layer.opacity,
+          groupPath: [...(inherited.groupPath ?? []), layer.id]
+        });
+        continue;
+      }
+      plan.push({
+        layer,
+        layerId: layer.id,
+        type: layer.type,
+        opacity: (inherited.opacity ?? 1) * layer.opacity,
+        blendMode: layer.blendMode,
+        compositeOperation: resolveCompositeOperation(layer.blendMode),
+        groupId: inherited.groupPath?.at(-1) ?? null,
+        groupPath: inherited.groupPath ?? []
+      });
+    }
+  };
+  visit(document.layers);
+  return plan;
+}
+
+export class CanvasDocumentRenderer {
+  constructor({ canvas, createCanvas = defaultCreateCanvas, assetResolver = null } = {}) {
+    if (!canvas?.getContext) throw new TypeError('Renderer wymaga głównego canvasa.');
+    this.canvas = canvas;
+    this.createCanvas = createCanvas;
+    this.assetResolver = assetResolver;
+  }
+
+  resize(width, height) {
+    if (this.canvas.width !== width) this.canvas.width = width;
+    if (this.canvas.height !== height) this.canvas.height = height;
+  }
+
+  render(document, options = {}) {
+    this.resize(document.width, document.height);
+    const context = this.canvas.getContext('2d');
+    if (!context) throw new Error('Nie można uzyskać kontekstu 2D.');
+    context.save?.();
+    context.setTransform?.(1, 0, 0, 1, 0, 0);
+    context.globalAlpha = 1;
+    context.globalCompositeOperation = 'source-over';
+    if (options.clear !== false) context.clearRect(0, 0, document.width, document.height);
+
+    const renderedLayerIds = [];
+    this.renderLayerCollection(document.layers, document, context, renderedLayerIds);
+    context.restore?.();
+    return { plan: buildRenderPlan(document), renderedLayerIds };
+  }
+
+  renderLayerCollection(layers, document, context, renderedLayerIds) {
+    const renderedById = new Map();
+    let previousBaseId = null;
+    for (const layer of layers) {
+      if (!layer.visible || layer.opacity <= 0) continue;
+      const layerCanvas = this.renderLayer(layer, document, renderedLayerIds);
+      if (!layerCanvas) continue;
+      let composited = layerCanvas;
+      if (layer.clipping?.enabled) {
+        const baseId = layer.clipping.baseLayerId ?? previousBaseId;
+        const baseCanvas = baseId ? renderedById.get(baseId) : null;
+        if (baseCanvas) composited = this.applyAlphaSource(layerCanvas, baseCanvas, false, 1);
+      } else {
+        previousBaseId = layer.id;
+      }
+
+      context.save?.();
+      context.globalAlpha = layer.opacity;
+      context.globalCompositeOperation = resolveCompositeOperation(layer.blendMode);
+      context.drawImage(composited, 0, 0);
+      context.restore?.();
+      renderedById.set(layer.id, composited);
+      renderedLayerIds.push(layer.id);
+    }
+    return renderedById;
+  }
+
+  renderLayer(layer, document, renderedLayerIds = []) {
+    let canvas = this.createCanvas(document.width, document.height);
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+
+    if (layer.type === 'group') {
+      this.renderLayerCollection(layer.children, document, context, renderedLayerIds);
+      if (!isIdentityTransform(layer.transform)) {
+        const transformed = this.createCanvas(document.width, document.height);
+        const transformedContext = transformed.getContext('2d');
+        transformedContext.save?.();
+        applyTransform(transformedContext, layer.transform);
+        transformedContext.drawImage(canvas, 0, 0);
+        transformedContext.restore?.();
+        canvas = transformed;
+      }
+    } else {
+      context.save?.();
+      applyTransform(context, layer.transform);
+      this.drawLayerContent(context, layer, document);
+      context.restore?.();
+    }
+
+    if (layer.mask?.enabled && layer.mask.assetId) {
+      const maskAsset = this.resolveAsset(layer.mask.assetId, document);
+      if (maskAsset) return this.applyAlphaSource(canvas, maskAsset, layer.mask.inverted, layer.mask.opacity);
+    }
+    return canvas;
+  }
+
+  drawLayerContent(context, layer, document) {
+    if (layer.type === 'raster') {
+      const source = this.resolveAsset(layer.content.assetId, document);
+      if (!source) return;
+      const width = layer.content.width || source.width || document.width;
+      const height = layer.content.height || source.height || document.height;
+      const interpolation = layer.metadata?.interpolation ?? document.metadata?.interpolation ?? 'high';
+      context.imageSmoothingEnabled = interpolation !== 'nearest';
+      if (context.imageSmoothingEnabled) context.imageSmoothingQuality = ['low', 'medium', 'high'].includes(interpolation) ? interpolation : 'high';
+      const perspectiveX = Number(layer.transform?.perspectiveX) || 0;
+      const perspectiveY = Number(layer.transform?.perspectiveY) || 0;
+      if (perspectiveX || perspectiveY) drawPerspectiveImage(context, source, width, height, perspectiveX, perspectiveY);
+      else context.drawImage(source, 0, 0, width, height);
+      return;
+    }
+
+    if (layer.type === 'text') {
+      const content = layer.content;
+      context.fillStyle = content.color;
+      context.font = `${content.fontWeight} ${content.fontSize}px ${content.fontFamily}`;
+      context.textAlign = content.align;
+      context.textBaseline = 'top';
+      if (content.maxWidth > 0) context.fillText(content.text, 0, 0, content.maxWidth);
+      else context.fillText(content.text, 0, 0);
+      return;
+    }
+
+    if (layer.type === 'shape') drawShape(context, layer.content);
+  }
+
+  resolveAsset(assetId, document) {
+    if (!assetId) return null;
+    if (this.assetResolver) return this.assetResolver(assetId, document);
+    return document.getRuntimeAsset?.(assetId) ?? null;
+  }
+
+  applyAlphaSource(source, maskSource, inverted = false, opacity = 1) {
+    const output = this.createCanvas(source.width, source.height);
+    const context = output.getContext('2d');
+    context.drawImage(source, 0, 0);
+    context.save?.();
+    context.globalCompositeOperation = inverted ? 'destination-out' : 'destination-in';
+    context.globalAlpha = Math.min(1, Math.max(0, Number(opacity) || 0));
+    context.drawImage(maskSource, 0, 0, source.width, source.height);
+    context.restore?.();
+    return output;
+  }
+}
+
+export function applyTransform(context, transform = {}) {
+  const x = Number(transform.x) || 0;
+  const y = Number(transform.y) || 0;
+  const originX = Number(transform.originX) || 0;
+  const originY = Number(transform.originY) || 0;
+  const rotation = (Number(transform.rotation) || 0) * Math.PI / 180;
+  const scaleX = Number.isFinite(Number(transform.scaleX)) ? Number(transform.scaleX) : 1;
+  const scaleY = Number.isFinite(Number(transform.scaleY)) ? Number(transform.scaleY) : 1;
+  const skewX = (Number(transform.skewX) || 0) * Math.PI / 180;
+  const skewY = (Number(transform.skewY) || 0) * Math.PI / 180;
+  context.translate?.(x + originX, y + originY);
+  if (rotation) context.rotate?.(rotation);
+  if ((skewX || skewY) && context.transform) context.transform(1, Math.tan(skewY), Math.tan(skewX), 1, 0, 0);
+  context.scale?.(scaleX, scaleY);
+  context.translate?.(-originX, -originY);
+}
+
+function isIdentityTransform(transform = {}) {
+  return !Number(transform.x)
+    && !Number(transform.y)
+    && !Number(transform.rotation)
+    && !Number(transform.skewX)
+    && !Number(transform.skewY)
+    && !Number(transform.perspectiveX)
+    && !Number(transform.perspectiveY)
+    && (transform.scaleX ?? 1) === 1
+    && (transform.scaleY ?? 1) === 1;
+}
+
+function drawShape(context, content) {
+  context.beginPath?.();
+  if (content.shape === 'ellipse') {
+    context.ellipse?.(content.width / 2, content.height / 2, content.width / 2, content.height / 2, 0, 0, Math.PI * 2);
+  } else if (content.shape === 'line') {
+    context.moveTo?.(0, 0);
+    context.lineTo?.(content.width, content.height);
+  } else if (content.radius > 0 && context.roundRect) {
+    context.roundRect(0, 0, content.width, content.height, content.radius);
+  } else {
+    context.rect?.(0, 0, content.width, content.height);
+  }
+  if (content.fill) {
+    context.fillStyle = content.fill;
+    context.fill?.();
+  }
+  if (content.stroke && content.strokeWidth > 0) {
+    context.strokeStyle = content.stroke;
+    context.lineWidth = content.strokeWidth;
+    context.stroke?.();
+  }
+}
+
+export function drawPerspectiveImage(context, source, width, height, perspectiveX = 0, perspectiveY = 0, subdivisions = 12) {
+  const columns = Math.max(2, Math.min(32, Math.round(subdivisions)));
+  const rows = columns;
+  const quad = perspectiveQuad(width, height, perspectiveX, perspectiveY);
+  const sourceWidth = Number(source.width || source.naturalWidth) || width;
+  const sourceHeight = Number(source.height || source.naturalHeight) || height;
+  for (let row = 0; row < rows; row += 1) {
+    const v0 = row / rows;
+    const v1 = (row + 1) / rows;
+    for (let column = 0; column < columns; column += 1) {
+      const u0 = column / columns;
+      const u1 = (column + 1) / columns;
+      const s00 = { x: u0 * sourceWidth, y: v0 * sourceHeight };
+      const s10 = { x: u1 * sourceWidth, y: v0 * sourceHeight };
+      const s11 = { x: u1 * sourceWidth, y: v1 * sourceHeight };
+      const s01 = { x: u0 * sourceWidth, y: v1 * sourceHeight };
+      const d00 = bilinearPoint(quad, u0, v0);
+      const d10 = bilinearPoint(quad, u1, v0);
+      const d11 = bilinearPoint(quad, u1, v1);
+      const d01 = bilinearPoint(quad, u0, v1);
+      drawTexturedTriangle(context, source, [s00, s10, s11], [d00, d10, d11]);
+      drawTexturedTriangle(context, source, [s00, s11, s01], [d00, d11, d01]);
+    }
+  }
+}
+
+function drawTexturedTriangle(context, source, sourceTriangle, destinationTriangle) {
+  const matrix = affineFromTriangles(sourceTriangle, destinationTriangle);
+  if (!matrix) return;
+  context.save?.();
+  context.beginPath?.();
+  context.moveTo?.(destinationTriangle[0].x, destinationTriangle[0].y);
+  context.lineTo?.(destinationTriangle[1].x, destinationTriangle[1].y);
+  context.lineTo?.(destinationTriangle[2].x, destinationTriangle[2].y);
+  context.closePath?.();
+  context.clip?.();
+  context.transform?.(...matrix);
+  context.drawImage(source, 0, 0);
+  context.restore?.();
+}
+
+function affineFromTriangles(source, destination) {
+  const [s0, s1, s2] = source;
+  const [d0, d1, d2] = destination;
+  const determinant = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y);
+  if (Math.abs(determinant) < 1e-10) return null;
+  const solve = values => [
+    (values[0] * (s1.y - s2.y) + values[1] * (s2.y - s0.y) + values[2] * (s0.y - s1.y)) / determinant,
+    (values[0] * (s2.x - s1.x) + values[1] * (s0.x - s2.x) + values[2] * (s1.x - s0.x)) / determinant,
+    (values[0] * (s1.x * s2.y - s2.x * s1.y) + values[1] * (s2.x * s0.y - s0.x * s2.y) + values[2] * (s0.x * s1.y - s1.x * s0.y)) / determinant
+  ];
+  const [a, c, e] = solve(destination.map(point => point.x));
+  const [b, d, f] = solve(destination.map(point => point.y));
+  return [a, b, c, d, e, f];
+}
+
+function defaultCreateCanvas(width, height) {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+  throw new Error('Brak implementacji canvasa. Przekaż createCanvas do renderera.');
+}
