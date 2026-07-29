@@ -42,6 +42,7 @@ export function renderCurves(panel, container, descriptor) {
     if (index > 0 && index < next.length - 1) {
       next.splice(index, 1);
       panel.updateDescriptor(descriptor, `channels.${panel.curveChannel}`, next, { label: 'Usuń punkt krzywej', coalesce: false });
+      drawCurveEditor(canvas, next, panel.curveChannel);
     }
   });
   const hint = document.createElement('p');
@@ -63,6 +64,7 @@ function startCurveDrag(panel, event, canvas, descriptor) {
   panel.curveDrag = { pointerId: event.pointerId, index, points };
   canvas.setPointerCapture?.(event.pointerId);
   panel.updateDescriptor(descriptor, `channels.${panel.curveChannel}`, points, { label: 'Zmień krzywą', coalesce: true });
+  drawCurveEditor(canvas, points, panel.curveChannel);
 }
 
 function moveCurvePoint(panel, event, canvas, descriptor) {
@@ -75,6 +77,7 @@ function moveCurvePoint(panel, event, canvas, descriptor) {
   points[index] = [index === 0 ? 0 : index === points.length - 1 ? 255 : clamp(location.x, minX, maxX), location.y];
   panel.curveDrag.points = points;
   panel.updateDescriptor(descriptor, `channels.${panel.curveChannel}`, points, { label: 'Zmień krzywą', coalesce: true });
+  drawCurveEditor(canvas, points, panel.curveChannel);
 }
 
 function finishCurveDrag(panel, event) {
