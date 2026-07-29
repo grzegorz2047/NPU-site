@@ -48,3 +48,17 @@ jobs:
           for file in src/editor-*.js; do
             node --check "$file"
           done
+      - name: Validate service worker shell
+        run: |
+          node --check sw.js
+          node --input-type=module <<'NODE'
+          import { existsSync, readFileSync } from 'node:fs';
+          const source = readFileSync('sw.js', 'utf8');
+          const paths = [...source.matchAll(/'\.\/([^']*)'/g)].map(match => match[1]);
+          const missing = paths.filter(path => path && !existsSync(path));
+          if (missing.length) {
+            console.error(`Brak plików offline shell: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+          console.log(`Offline shell: ${paths.length} ścieżek, brak brakujących plików.`);
+          NODE
