@@ -1,0 +1,62 @@
+name: Depth branch patch
+
+on:
+  push:
+    branches: [agent/npu-depth-58]
+    paths: ['.github/workflows/depth-branch-patch.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/npu-depth-58
+          fetch-depth: 0
+      - name: Patch bootstrap cache and docs
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+          boot=Path('src/editor-adjustments-bootstrap.js')
+          text=boot.read_text()
+          line="  import('./editor-depth-bootstrap.js').catch(() => {});"
+          if line not in text:
+              anchor="  import('./editor-smart-select-bootstrap.js').catch(() => {});"
+              if anchor not in text: raise SystemExit('Brak bootstrapu Smart Select')
+              text=text.replace(anchor,anchor+'\n'+line)
+              boot.write_text(text)
+          sw=Path('sw.js'); text=sw.read_text()
+          match=re.search(r'localsafe-shell-v(\d+)',text)
+          if match: text=text[:match.start()]+f'localsafe-shell-v{int(match.group(1))+1}'+text[match.end():]
+          if "'./editor-depth.css'" not in text: text=text.replace("'./hub.css'","'./editor-depth.css','./hub.css'")
+          files=['./src/editor-depth-map.js','./src/editor-depth-effects.js','./src/editor-depth-renderer.js','./src/editor-depth-commands.js','./src/editor-depth-engine.js','./src/editor-depth-ui.js','./src/editor-depth-bootstrap.js']
+          anchor="'./src/editor-core.js'"
+          for item in reversed(files):
+              quoted=repr(item)
+              if quoted not in text: text=text.replace(anchor,quoted+','+anchor)
+          sw.write_text(text)
+          readme=Path('README.md'); text=readme.read_text()
+          needle='- `src/editor-adjustments-ui.js` — panel warstw korekcyjnych, krzywe i porównanie przed/po.'
+          addition=needle+'\n- `src/editor-depth-map.js` — normalizacja, skalowanie i ręczna edycja mapy głębi,\n- `src/editor-depth-effects.js` — Lens Blur, relighting, atmosfera i finalny render kafelkowy,\n- `src/editor-depth-renderer.js` — warstwy efektów głębi w stosie dokumentu,\n- `src/editor-depth-ui.js` — mapa, punkt ostrości, pędzel i parametry efektów.'
+          if needle in text and 'editor-depth-map.js' not in text: text=text.replace(needle,addition)
+          anchor='#### Projekty lokalne'
+          section='''#### Głębia i światło\n\n- model Depth Anything tworzy lokalną mapę głębi zapisywaną jako zasób projektu,\n- punkt ostrości wybiera się kliknięciem, a mapę można poprawić pędzlem,\n- Lens Blur, relighting i atmosfera są osobnymi warstwami,\n- finalny render działa kafelkowo z overlapem.\n\nSzczegóły: `docs/EDITOR_DEPTH.md`.\n\n'''
+          if anchor in text and '#### Głębia i światło' not in text: text=text.replace(anchor,section+anchor)
+          readme.write_text(text)
+          PY
+      - name: Validate
+        run: |
+          npm test
+          for file in src/editor-*.js; do node --check "$file"; done
+      - name: Commit
+        run: |
+          rm .github/workflows/depth-branch-patch.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add README.md sw.js src/editor-adjustments-bootstrap.js .github/workflows/depth-branch-patch.yml
+          git commit -m "Podepnij mapę głębi do workspace"
+          git push origin HEAD:agent/npu-depth-58
