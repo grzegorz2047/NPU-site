@@ -1,6 +1,7 @@
 import { createEditorDocument, createId, createLayerMask, createRasterLayer } from './editor-document.js';
 import { addLayerCommand, CommandHistory, updateLayerCommand } from './editor-history.js';
 import { LayersPanel } from './editor-layers-ui.js';
+import { CanvasController } from './editor-canvas-controller.js';
 import { ProjectController } from './editor-project-controller.js';
 import { CanvasDocumentRenderer } from './editor-renderer.js';
 
@@ -14,6 +15,7 @@ if (canvas) {
     assetResolver: assetId => documentModel.getRuntimeAsset(assetId)
   });
   const layersPanel = new LayersPanel({ documentModel, history, renderer, root: document });
+  const canvasController = new CanvasController({ documentModel, history, renderer, root: document });
   const documentTitle = document.getElementById('document-title');
   const resultEmpty = document.getElementById('result-empty');
   const downloadButton = document.getElementById('download-button');
@@ -115,12 +117,16 @@ if (canvas) {
     if (!baseLayer) return;
     const snapshot = cloneCanvas(detail.canvas, detail.width, detail.height);
     documentModel.setRuntimeAsset(baseLayer.content.assetId, snapshot);
-    baseLayer.content.width = detail.width;
-    baseLayer.content.height = detail.height;
+    if (!baseLayer.metadata?.manualSize) {
+      baseLayer.content.width = detail.width;
+      baseLayer.content.height = detail.height;
+    }
     baseLayer.metadata.legacyRevision = ++renderRevision;
     baseLayer.metadata.aiMaskPrepared = Boolean(detail.mask);
-    documentModel.width = detail.width;
-    documentModel.height = detail.height;
+    if (!documentModel.metadata?.canvasGeometryLocked) {
+      documentModel.width = detail.width;
+      documentModel.height = detail.height;
+    }
     documentModel.name = detail.name || documentModel.name;
     if (documentTitle) documentTitle.textContent = documentModel.name;
 
@@ -190,6 +196,7 @@ if (canvas) {
     history,
     renderer,
     layersPanel,
+    canvasController,
     projects: projectController,
     addAIResultLayer,
     applyAIResultAsMask,

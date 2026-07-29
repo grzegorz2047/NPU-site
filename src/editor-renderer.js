@@ -1,3 +1,5 @@
+import { bilinearPoint, perspectiveQuad } from './editor-canvas-geometry.js';
+
 export const COMPOSITE_OPERATIONS = Object.freeze({
   normal: 'source-over',
   multiply: 'multiply',
@@ -129,7 +131,13 @@ export class CanvasDocumentRenderer {
       if (!source) return;
       const width = layer.content.width || source.width || document.width;
       const height = layer.content.height || source.height || document.height;
-      context.drawImage(source, 0, 0, width, height);
+      const interpolation = layer.metadata?.interpolation ?? document.metadata?.interpolation ?? 'high';
+      context.imageSmoothingEnabled = interpolation !== 'nearest';
+      if (context.imageSmoothingEnabled) context.imageSmoothingQuality = ['low', 'medium', 'high'].includes(interpolation) ? interpolation : 'high';
+      const perspectiveX = Number(layer.transform?.perspectiveX) || 0;
+      const perspectiveY = Number(layer.transform?.perspectiveY) || 0;
+      if (perspectiveX || perspectiveY) drawPerspectiveImage(context, source, width, height, perspectiveX, perspectiveY);
+      else context.drawImage(source, 0, 0, width, height);
       return;
     }
 
@@ -189,6 +197,8 @@ function isIdentityTransform(transform = {}) {
     && !Number(transform.rotation)
     && !Number(transform.skewX)
     && !Number(transform.skewY)
+    && !Number(transform.perspectiveX)
+    && !Number(transform.perspectiveY)
     && (transform.scaleX ?? 1) === 1
     && (transform.scaleY ?? 1) === 1;
 }
@@ -214,6 +224,62 @@ function drawShape(context, content) {
     context.lineWidth = content.strokeWidth;
     context.stroke?.();
   }
+}
+
+export function drawPerspectiveImage(context, source, width, height, perspectiveX = 0, perspectiveY = 0, subdivisions = 12) {
+  const columns = Math.max(2, Math.min(32, Math.round(subdivisions)));
+  const rows = columns;
+  const quad = perspectiveQuad(width, height, perspectiveX, perspectiveY);
+  const sourceWidth = Number(source.width || source.naturalWidth) || width;
+  const sourceHeight = Number(source.height || source.naturalHeight) || height;
+  for (let row = 0; row < rows; row += 1) {
+    const v0 = row / rows;
+    const v1 = (row + 1) / rows;
+    for (let column = 0; column < columns; column += 1) {
+      const u0 = column / columns;
+      const u1 = (column + 1) / columns;
+      const s00 = { x: u0 * sourceWidth, y: v0 * sourceHeight };
+      const s10 = { x: u1 * sourceWidth, y: v0 * sourceHeight };
+      const s11 = { x: u1 * sourceWidth, y: v1 * sourceHeight };
+      const s01 = { x: u0 * sourceWidth, y: v1 * sourceHeight };
+      const d00 = bilinearPoint(quad, u0, v0);
+      const d10 = bilinearPoint(quad, u1, v0);
+      const d11 = bilinearPoint(quad, u1, v1);
+      const d01 = bilinearPoint(quad, u0, v1);
+      drawTexturedTriangle(context, source, [s00, s10, s11], [d00, d10, d11]);
+      drawTexturedTriangle(context, source, [s00, s11, s01], [d00, d11, d01]);
+    }
+  }
+}
+
+function drawTexturedTriangle(context, source, sourceTriangle, destinationTriangle) {
+  const matrix = affineFromTriangles(sourceTriangle, destinationTriangle);
+  if (!matrix) return;
+  context.save?.();
+  context.beginPath?.();
+  context.moveTo?.(destinationTriangle[0].x, destinationTriangle[0].y);
+  context.lineTo?.(destinationTriangle[1].x, destinationTriangle[1].y);
+  context.lineTo?.(destinationTriangle[2].x, destinationTriangle[2].y);
+  context.closePath?.();
+  context.clip?.();
+  context.transform?.(...matrix);
+  context.drawImage(source, 0, 0);
+  context.restore?.();
+}
+
+function affineFromTriangles(source, destination) {
+  const [s0, s1, s2] = source;
+  const [d0, d1, d2] = destination;
+  const determinant = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y);
+  if (Math.abs(determinant) < 1e-10) return null;
+  const solve = values => [
+    (values[0] * (s1.y - s2.y) + values[1] * (s2.y - s0.y) + values[2] * (s0.y - s1.y)) / determinant,
+    (values[0] * (s2.x - s1.x) + values[1] * (s0.x - s2.x) + values[2] * (s1.x - s0.x)) / determinant,
+    (values[0] * (s1.x * s2.y - s2.x * s1.y) + values[1] * (s2.x * s0.y - s0.x * s2.y) + values[2] * (s0.x * s1.y - s1.x * s0.y)) / determinant
+  ];
+  const [a, c, e] = solve(destination.map(point => point.x));
+  const [b, d, f] = solve(destination.map(point => point.y));
+  return [a, b, c, d, e, f];
 }
 
 function defaultCreateCanvas(width, height) {

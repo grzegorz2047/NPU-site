@@ -24,6 +24,8 @@ export function createTransform(transform = {}) {
     rotation: finite(transform.rotation, 0),
     skewX: finite(transform.skewX, 0),
     skewY: finite(transform.skewY, 0),
+    perspectiveX: Math.max(-0.95, Math.min(0.95, finite(transform.perspectiveX, 0))),
+    perspectiveY: Math.max(-0.95, Math.min(0.95, finite(transform.perspectiveY, 0))),
     originX: finite(transform.originX, 0),
     originY: finite(transform.originY, 0)
   };

@@ -5,6 +5,7 @@ on:
     paths:
       - 'editor.html'
       - 'editor.css'
+      - 'editor-canvas.css'
       - 'src/editor-*.js'
       - 'src/search-core.js'
       - 'src/conversation-answer.js'
@@ -19,6 +20,7 @@ on:
     paths:
       - 'editor.html'
       - 'editor.css'
+      - 'editor-canvas.css'
       - 'src/editor-*.js'
       - 'src/search-core.js'
       - 'src/conversation-answer.js'
@@ -49,6 +51,10 @@ jobs:
             src/editor-document.js \
             src/editor-history.js \
             src/editor-layers-ui.js \
+            src/editor-canvas-geometry.js \
+            src/editor-canvas-commands.js \
+            src/editor-canvas-ui.js \
+            src/editor-canvas-controller.js \
             src/editor-project-assets.js \
             src/editor-project-controller.js \
             src/editor-project-format.js \

@@ -33,7 +33,7 @@ test('supports raster, text, shape and group layers with common properties', () 
     assert.equal(layer.locked, false);
     assert.equal(layer.opacity, 1);
     assert.equal(layer.blendMode, 'normal');
-    assert.deepEqual(Object.keys(layer.transform), ['x', 'y', 'scaleX', 'scaleY', 'rotation', 'skewX', 'skewY', 'originX', 'originY']);
+    assert.deepEqual(Object.keys(layer.transform), ['x', 'y', 'scaleX', 'scaleY', 'rotation', 'skewX', 'skewY', 'perspectiveX', 'perspectiveY', 'originX', 'originY']);
   }
   assert.equal(layers[3].children[0].id, 'nested');
 });
@@ -94,7 +94,7 @@ test('updates visibility, opacity, lock, name, blend, transform, mask and clippi
     locked: true,
     name: 'Renamed',
     blendMode: 'multiply',
-    transform: { x: 20, rotation: 45 },
+    transform: { x: 20, rotation: 45, perspectiveX: 4, perspectiveY: -4 },
     mask: createLayerMask({ assetId: 'mask-1', inverted: true }),
     clipping: { enabled: true, baseLayerId: 'base' }
   });
@@ -106,6 +106,8 @@ test('updates visibility, opacity, lock, name, blend, transform, mask and clippi
   assert.equal(updated.blendMode, 'multiply');
   assert.equal(updated.transform.x, 20);
   assert.equal(updated.transform.rotation, 45);
+  assert.equal(updated.transform.perspectiveX, 0.95);
+  assert.equal(updated.transform.perspectiveY, -0.95);
   assert.equal(updated.mask.assetId, 'mask-1');
   assert.equal(updated.mask.inverted, true);
   assert.deepEqual(updated.clipping, { enabled: true, baseLayerId: 'base' });
