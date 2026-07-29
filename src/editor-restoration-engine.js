@@ -5,16 +5,17 @@ import {
   estimateRestorationMemory,
   normalizeRestorationOptions,
   resizeRgbaBilinear,
-  stitchScaledRgbaTiles,
   unsharpMask
 } from './editor-restoration-core.js';
+import { ScaledRgbaAccumulator } from './editor-restoration-accumulator.js';
 
 export class RestorationEngine {
-  constructor({ inferenceEngine = globalThis.localStudioInference, runtime = inferenceEngine?.runtime, registry = runtime?.registry, maxMegapixels = 80 } = {}) {
+  constructor({ inferenceEngine = globalThis.localStudioInference, runtime = inferenceEngine?.runtime, registry = runtime?.registry, maxMegapixels = 80, maxMemoryBytes = 512 * 1024 * 1024 } = {}) {
     if (!runtime || !registry) throw new Error('Restoration wymaga wspólnego runtime’u modeli obrazu.');
     this.runtime = runtime;
     this.registry = registry;
     this.maxMegapixels = Math.max(1, Number(maxMegapixels) || 80);
+    this.maxMemoryBytes = Math.max(32 * 1024 * 1024, Number(maxMemoryBytes) || 512 * 1024 * 1024);
     this.task = null;
   }
 
@@ -33,22 +34,29 @@ export class RestorationEngine {
   async enqueue(canvas, options) {
     if (this.task) throw new Error('Inne zadanie restoration jest już aktywne.');
     const normalized = normalizeRestorationOptions(options);
+    const mode = normalizeMode(options.mode);
     const taskId = `restoration-${normalized.profileId}-${Date.now().toString(36)}`;
     this.task = this.runtime.queue.enqueue(async ({ signal, reportProgress }) => {
       const startedAt = now();
       const workingScale = normalized.modelId ? Math.max(normalized.scale, normalized.modelOutputScale) : normalized.scale;
       const memory = estimateRestorationMemory(canvas.width, canvas.height, { scale: workingScale, tileSize: normalized.tileSize });
+      const workingPixels = canvas.width * canvas.height * workingScale * workingScale;
+      const finalOutputBytes = canvas.width * canvas.height * normalized.scale * normalized.scale * 4;
       memory.finalScale = normalized.scale;
       memory.workingScale = workingScale;
-      if (memory.megapixels > this.maxMegapixels) throw new Error(`Rozmiar roboczy miałby ${memory.megapixels.toFixed(1)} MP. Zmniejsz skalę lub obraz.`);
+      memory.accumulatorBytes = workingPixels * 8;
+      memory.peakBytes = memory.accumulatorBytes + memory.tileBytes * 2 + (normalized.preserveSize ? finalOutputBytes : 0);
+      if (memory.megapixels > this.maxMegapixels || memory.peakBytes > this.maxMemoryBytes) {
+        throw new Error(`Rozmiar roboczy ${memory.megapixels.toFixed(1)} MP wymaga około ${formatBytes(memory.peakBytes)}. Zmniejsz skalę lub obraz.`);
+      }
       reportProgress({ stage: 'preprocessing', label: options.preview ? 'Przygotowanie podglądu 1:1' : 'Przygotowanie kafelków', progress: 2 });
       let result;
       let fallbackReason = null;
       if (normalized.modelId) {
         try {
-          result = await this.runModelTiled(canvas, normalized, { signal, reportProgress, mode: normalizeMode(options.mode) });
+          result = await this.runModelTiled(canvas, normalized, { signal, reportProgress, mode });
         } catch (error) {
-          if (error?.name === 'AbortError' || !normalized.allowLocalFallback) throw error;
+          if (!canUseLocalFallback(mode, normalized.allowLocalFallback, error)) throw error;
           fallbackReason = error instanceof Error ? error.message : String(error);
           reportProgress({ stage: 'fallback', label: 'Model niedostępny — lokalny fallback', progress: 5 });
           result = await this.runLocalTiled(canvas, normalized, { signal, reportProgress });
@@ -81,7 +89,7 @@ export class RestorationEngine {
 
   async runModelTiled(canvas, options, { signal, reportProgress, mode }) {
     const plan = createScaledTilePlan(canvas.width, canvas.height, { tileSize: options.tileSize, overlap: options.overlap, scale: options.modelOutputScale });
-    const outputs = [];
+    const accumulator = new ScaledRgbaAccumulator(plan);
     const reports = [];
     let backend = null;
     for (const tile of plan.tiles) {
@@ -98,12 +106,13 @@ export class RestorationEngine {
       });
       backend = completed.backend;
       reports.push(completed.benchmark);
-      outputs.push(await imageResultToRgba(completed.result, tile.output.width, tile.output.height, signal));
+      const output = await imageResultToRgba(completed.result, tile.output.width, tile.output.height, signal);
+      accumulator.add(tile, output);
       reportProgress({ stage: 'inference', label: `Kafelek ${tile.index + 1}/${plan.tiles.length}`, completed: tile.index + 1, total: plan.tiles.length, progress: (tile.index + 1) / plan.tiles.length * 88 });
     }
     throwIfAborted(signal);
     reportProgress({ stage: 'postprocessing', label: 'Składanie bez szwów', progress: 92 });
-    let stitched = stitchScaledRgbaTiles(plan, outputs);
+    let stitched = accumulator.finish();
     if (options.preserveSize) stitched = resizeRgbaBilinear(stitched.data, stitched.width, stitched.height, canvas.width, canvas.height, signal);
     if (options.sharpen > 0) stitched.data = unsharpMask(stitched.data, stitched.width, stitched.height, options.sharpen, signal);
     reportProgress({ stage: 'postprocessing', label: 'Gotowe', progress: 100 });
@@ -113,19 +122,19 @@ export class RestorationEngine {
   async runLocalTiled(canvas, options, { signal, reportProgress }) {
     const outputScale = options.task === 'super-resolution' ? options.scale : 1;
     const plan = createScaledTilePlan(canvas.width, canvas.height, { tileSize: options.tileSize, overlap: options.overlap, scale: outputScale });
-    const outputs = [];
+    const accumulator = new ScaledRgbaAccumulator(plan);
     const startedAt = now();
     for (const tile of plan.tiles) {
       throwIfAborted(signal);
       const tileCanvas = cropCanvas(canvas, tile);
       const source = canvasRgba(tileCanvas);
       const result = applyLocalRestoration(source.data, source.width, source.height, options, signal);
-      outputs.push(result);
+      accumulator.add(tile, result);
       reportProgress({ stage: 'inference', label: `Lokalny kafelek ${tile.index + 1}/${plan.tiles.length}`, completed: tile.index + 1, total: plan.tiles.length, progress: (tile.index + 1) / plan.tiles.length * 90 });
       await yieldTurn();
     }
     throwIfAborted(signal);
-    const stitched = stitchScaledRgbaTiles(plan, outputs);
+    const stitched = accumulator.finish();
     reportProgress({ stage: 'postprocessing', label: 'Gotowe', progress: 100 });
     return {
       ...stitched,
@@ -139,6 +148,10 @@ export class RestorationEngine {
   cancel(reason = 'Restoration anulowane.') {
     return this.task?.cancel(reason) ?? false;
   }
+}
+
+export function canUseLocalFallback(mode, allowLocalFallback, error) {
+  return mode !== 'npu' && allowLocalFallback !== false && error?.name !== 'AbortError';
 }
 
 export async function imageResultToRgba(result, expectedWidth, expectedHeight, signal = null) {
@@ -187,3 +200,4 @@ function assertCanvasLike(canvas) { if (!canvas?.getContext || !canvas.width || 
 function throwIfAborted(signal) { if (signal?.aborted) throw new DOMException(String(signal.reason || 'Operacja anulowana.'), 'AbortError'); }
 function now() { return globalThis.performance?.now?.() ?? Date.now(); }
 function yieldTurn() { return new Promise(resolve => setTimeout(resolve, 0)); }
+function formatBytes(value) { const bytes = Number(value) || 0; return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1)} MB`; }
