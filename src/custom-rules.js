@@ -23,10 +23,10 @@ export function scanCustomRules(text,rules=[],lang='pl'){
  for(const raw of Array.isArray(rules)?rules:[]){const checked=validateCustomRule(raw,lang),rule=checked.rule;if(!rule.enabled)continue;if(!checked.valid){errors.push({id:rule.id,name:rule.name,error:checked.error});continue}const regex=checked.regex;let match;while((match=regex.exec(input))){const value=match[0];if(!value.length){regex.lastIndex++;continue}const location=lineColumn(input,match.index);findings.push({type:'custom',value,start:match.index,end:match.index+value.length,...location,mask:rule.mask,risk:'high',source:'custom-rule',customRuleId:rule.id,customRuleName:rule.name,customRuleMode:rule.mode});}}
  return{findings:findings.sort((a,b)=>a.start-b.start||a.end-b.end),errors};
 }
-export function loadCustomRules(storage=globalThis.localStorage){try{const parsed=JSON.parse(storage?.getItem(CUSTOM_RULES_STORAGE_KEY)||'[]');return(Array.isArray(parsed)?parsed:[]).map(normalizeCustomRule)}catch{return[]}}
-export function saveCustomRules(rules,storage=globalThis.localStorage){try{storage?.setItem(CUSTOM_RULES_STORAGE_KEY,JSON.stringify((Array.isArray(rules)?rules:[]).map(normalizeCustomRule)));return true}catch{return false}}
+export function loadCustomRules(storage){try{const target=storage??globalThis.localStorage;if(!target)return[];const parsed=JSON.parse(target.getItem(CUSTOM_RULES_STORAGE_KEY)||'[]');return(Array.isArray(parsed)?parsed:[]).map(normalizeCustomRule)}catch{return[]}}
+export function saveCustomRules(rules,storage){try{const target=storage??globalThis.localStorage;if(!target)return false;target.setItem(CUSTOM_RULES_STORAGE_KEY,JSON.stringify((Array.isArray(rules)?rules:[]).map(normalizeCustomRule)));return true}catch{return false}}
 function makeId(){return globalThis.crypto?.randomUUID?.()||`rule-${Date.now()}-${Math.random().toString(36).slice(2)}`}
-export function createCustomRulesController({getLang=()=> 'pl',storage=globalThis.localStorage,root=globalThis.document,onChange=()=>{}}={}){
+export function createCustomRulesController({getLang=()=> 'pl',storage,root=globalThis.document,onChange=()=>{}}={}){
  const element=id=>root?.getElementById?.(id),form=element('custom-rule-form'),list=element('custom-rules-list'),error=element('custom-rule-error');
  let rules=loadCustomRules(storage);
  function showError(message=''){if(!error)return;error.textContent=message;error.hidden=!message}
