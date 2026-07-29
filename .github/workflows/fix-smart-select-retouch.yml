@@ -1,9 +1,9 @@
 name: Fix Smart Select and retouch
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/fix-smart-select-model-ids
+      - main
 
 permissions:
   contents: write
