@@ -28,6 +28,12 @@
     <button id="browse-button" class="command primary" type="button">Otwórz</button>
     <button id="sample-button" class="command" type="button">Przykład</button>
     <span class="separator"></span>
+    <input id="project-file-input" type="file" accept=".localstudio,application/x-localstudio+json,application/json" hidden />
+    <button id="project-new" class="command" type="button">Nowy</button>
+    <button id="project-save" class="command" type="button">Zapisz</button>
+    <button id="project-import" class="command" type="button">Otwórz projekt</button>
+    <button id="project-export" class="command" type="button">Pobierz projekt</button>
+    <span class="separator"></span>
     <button id="undo-button" class="command command-icon" type="button" disabled aria-label="Cofnij" title="Brak operacji do cofnięcia">↶</button>
     <button id="redo-button" class="command command-icon" type="button" disabled aria-label="Ponów" title="Brak operacji do ponowienia">↷</button>
     <span class="separator"></span>
@@ -77,12 +83,20 @@
 
       <footer class="status-bar">
         <span id="engine-status">Silnik nieuruchomiony.</span>
+        <span id="project-save-status" class="project-save-status" data-tone="neutral">Inicjalizacja projektów…</span>
         <span id="download-status">Załaduj obraz, aby rozpocząć.</span>
       </footer>
     </section>
 
     <aside class="inspector" aria-label="Właściwości obrazu">
       <div class="inspector-title"><strong>Właściwości</strong><span>Local edit</span></div>
+      <details class="inspector-section project-section" open>
+        <summary>Projekty lokalne</summary>
+        <div class="section-body">
+          <p class="hint">Autosave zapisuje dokument, historię i zasoby wyłącznie w IndexedDB tej przeglądarki.</p>
+          <div id="recent-projects" class="recent-projects" aria-live="polite"><p class="recent-projects-empty">Ładowanie projektów…</p></div>
+        </div>
+      </details>
       <details class="inspector-section" open><summary>AI i dokument</summary><div class="section-body"><label>Akcelerator<select id="backend-select"><option value="auto">Auto: NPU → GPU → CPU</option><option value="npu">Tylko NPU / WebNN</option><option value="gpu">GPU / Transformers.js</option><option value="cpu">CPU / WASM</option></select></label><button id="init-button" class="panel-button" type="button">Uruchom silnik</button><div id="model-progress" class="progress-wrap" hidden><div class="progress-track"><span id="progress-bar"></span></div><span id="progress-text">Ładowanie modelu…</span></div><label class="file-field">Obraz tła<input id="background-input" type="file" accept="image/jpeg,image/png,image/webp" /></label></div></details>
       <details class="inspector-section layers-section" open>
         <summary>Warstwy</summary>

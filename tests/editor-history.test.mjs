@@ -100,3 +100,23 @@ test('compacts repeated opacity changes into one undo entry', () => {
   history.redo(documentModel);
   assert.equal(documentModel.getLayer('base').opacity, 0.4);
 });
+
+test('serializes and restores undo/redo snapshots', () => {
+  const { documentModel, history } = fixture();
+  history.execute(setLayerNameCommand('base', 'Portret'), documentModel);
+  history.execute(setLayerVisibilityCommand('base', false), documentModel);
+  history.undo(documentModel);
+  const snapshot = JSON.parse(JSON.stringify(history));
+
+  const restored = new CommandHistory();
+  restored.restore(snapshot);
+  assert.equal(restored.canUndo, true);
+  assert.equal(restored.canRedo, true);
+  assert.equal(restored.undoStack.at(-1).label, 'Zmień nazwę warstwy');
+  assert.equal(restored.redoStack.at(-1).label, 'Ukryj warstwę');
+
+  restored.redo(documentModel);
+  assert.equal(documentModel.getLayer('base').visible, false);
+  restored.undo(documentModel);
+  assert.equal(documentModel.getLayer('base').visible, true);
+});

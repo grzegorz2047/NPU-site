@@ -1,5 +1,7 @@
 import { cloneLayer } from './editor-document.js';
 
+export const HISTORY_SCHEMA_VERSION = 1;
+
 export class SnapshotCommand {
   constructor(label, mutate, options = {}) {
     if (typeof mutate !== 'function') throw new TypeError('Komenda wymaga funkcji mutującej dokument.');
@@ -27,9 +29,29 @@ export class SnapshotCommand {
 
   merge(command) {
     if (!this.coalesceKey || command.coalesceKey !== this.coalesceKey || !command.after) return false;
-    this.after = command.after;
+    this.after = clonePlain(command.after);
     this.label = command.label;
     return true;
+  }
+
+  toJSON() {
+    return {
+      version: HISTORY_SCHEMA_VERSION,
+      label: this.label,
+      coalesceKey: this.coalesceKey,
+      before: clonePlain(this.before),
+      after: clonePlain(this.after)
+    };
+  }
+
+  static fromJSON(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') throw new TypeError('Nieprawidłowy zapis komendy historii.');
+    if (Number(snapshot.version ?? 1) > HISTORY_SCHEMA_VERSION) throw new Error('Historia została zapisana w nowszej wersji aplikacji.');
+    const command = new SnapshotCommand(snapshot.label, () => {}, { coalesceKey: snapshot.coalesceKey ?? null });
+    command.before = snapshot.before ? clonePlain(snapshot.before) : null;
+    command.after = snapshot.after ? clonePlain(snapshot.after) : null;
+    if (!command.before || !command.after) throw new Error('Zapis komendy historii jest niekompletny.');
+    return command;
   }
 }
 
@@ -111,6 +133,29 @@ export class CommandHistory {
     if (this.undoStack.length > this.limit) this.undoStack.splice(0, this.undoStack.length - this.limit);
     if (this.redoStack.length > this.limit) this.redoStack.splice(0, this.redoStack.length - this.limit);
   }
+
+  toJSON() {
+    return {
+      version: HISTORY_SCHEMA_VERSION,
+      limit: this.limit,
+      undo: this.undoStack.map(command => command.toJSON()),
+      redo: this.redoStack.map(command => command.toJSON())
+    };
+  }
+
+  restore(snapshot, { emit = true } = {}) {
+    if (!snapshot) {
+      this.clear();
+      return this;
+    }
+    if (Number(snapshot.version ?? 1) > HISTORY_SCHEMA_VERSION) throw new Error('Historia została zapisana w nowszej wersji aplikacji.');
+    this.limit = normalizeLimit(snapshot.limit ?? this.limit);
+    this.undoStack = (snapshot.undo ?? []).map(item => SnapshotCommand.fromJSON(item));
+    this.redoStack = (snapshot.redo ?? []).map(item => SnapshotCommand.fromJSON(item));
+    this.trim();
+    if (emit) this.emit('restore');
+    return this;
+  }
 }
 
 export function createDocumentCommand(label, mutate, options) { return new SnapshotCommand(label, mutate, options); }
@@ -155,6 +200,7 @@ function normalizeLimit(limit) {
   return Number.isFinite(number) && number > 0 ? number : 100;
 }
 function clonePlain(value) {
+  if (value === null || value === undefined) return value;
   if (typeof structuredClone === 'function') return structuredClone(value);
   return JSON.parse(JSON.stringify(value));
 }
