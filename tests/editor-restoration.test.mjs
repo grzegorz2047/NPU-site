@@ -12,6 +12,8 @@ import {
   differenceRgba,
   estimateRestorationMemory
 } from '../src/editor-restoration-core.js';
+import { ScaledRgbaAccumulator } from '../src/editor-restoration-accumulator.js';
+import { canUseLocalFallback } from '../src/editor-restoration-engine.js';
 import { createAddRestorationLayerCommand } from '../src/editor-restoration-commands.js';
 import { createEditorDocument, createRasterLayer } from '../src/editor-document.js';
 import { CommandHistory } from '../src/editor-history.js';
@@ -53,6 +55,17 @@ test('scaled tile stitch blends constant overlapping tiles without seams', () =>
   assert.equal(stitched.width, 12);
   assert.equal(stitched.height, 4);
   for (let index = 0; index < stitched.data.length; index += 4) assert.deepEqual([...stitched.data.slice(index, index + 4)], [120, 80, 40, 255]);
+});
+
+test('streaming accumulator releases tile outputs and preserves seamless color', () => {
+  const plan = createScaledTilePlan(6, 2, { tileSize: 4, overlap: 1, scale: 2 });
+  const accumulator = new ScaledRgbaAccumulator(plan);
+  for (const tile of plan.tiles) accumulator.add(tile, { width: tile.output.width, height: tile.output.height, data: solid(tile.output.width, tile.output.height, [18, 90, 170, 255]) });
+  const result = accumulator.finish();
+  assert.equal(accumulator.completed.size, plan.tiles.length);
+  assert.equal(accumulator.memoryBytes, plan.outputWidth * plan.outputHeight * 8);
+  for (let index = 0; index < result.data.length; index += 4) assert.deepEqual([...result.data.slice(index, index + 4)], [18, 90, 170, 255]);
+  assert.throws(() => accumulator.add(plan.tiles[0], solid(plan.tiles[0].output.width, plan.tiles[0].output.height, [0, 0, 0, 0])), /ponownie/);
 });
 
 test('tile extraction preserves exact source pixels', () => {
@@ -103,6 +116,15 @@ test('memory estimate accounts for output scale', () => {
   const four = estimateRestorationMemory(100, 50, { scale: 4, tileSize: 64 });
   assert.equal(four.outputBytes, one.outputBytes * 16);
   assert.ok(four.peakBytes > four.outputBytes);
+});
+
+test('NPU-only mode never falls back to local CPU', () => {
+  const failure = new Error('model unavailable');
+  assert.equal(canUseLocalFallback('auto', true, failure), true);
+  assert.equal(canUseLocalFallback('webgpu', true, failure), true);
+  assert.equal(canUseLocalFallback('npu', true, failure), false);
+  assert.equal(canUseLocalFallback('auto', false, failure), false);
+  assert.equal(canUseLocalFallback('auto', true, new DOMException('stop', 'AbortError')), false);
 });
 
 test('abort signal stops expensive local processing', () => {
