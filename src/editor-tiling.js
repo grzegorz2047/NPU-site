@@ -62,7 +62,7 @@ export function stitchNumericTiles(plan, outputs, { channels = 1, ArrayType = Fl
   return output;
 }
 
-export async function runTiledInference({ width, height, tileSize = 512, overlap = 32, channels = 1, extractTile, inferTile, signal, onProgress = () => {} }) {
+export async function runTiledInference({ width, height, tileSize = 512, overlap = 32, channels = 1, extractTile, inferTile, signal, onProgress = () => {}, now = () => performance.now() }) {
   if (typeof extractTile !== 'function' || typeof inferTile !== 'function') throw new TypeError('Tiling wymaga extractTile i inferTile.');
   const plan = createTilePlan(width, height, { tileSize, overlap });
   const outputs = [];
@@ -74,7 +74,11 @@ export async function runTiledInference({ width, height, tileSize = 512, overlap
     onProgress({ stage: 'inference', completed: tile.index + 1, total: plan.tiles.length, progress: (tile.index + 1) / plan.tiles.length * 100, tile });
   }
   throwIfAborted(signal);
-  return { plan, data: stitchNumericTiles(plan, outputs, { channels }) };
+  const stitchStartedAt = now();
+  const data = stitchNumericTiles(plan, outputs, { channels });
+  const stitchDurationMs = Math.max(0, now() - stitchStartedAt);
+  onProgress({ stage: 'postprocessing', label: 'Składanie kafelków', progress: 100 });
+  return { plan, data, stitchDurationMs };
 }
 
 function positions(length, tileSize, step) {
