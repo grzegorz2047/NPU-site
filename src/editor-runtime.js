@@ -186,6 +186,20 @@ async function createTransformersSession({ model, backend, signal, benchmark, on
     };
   }
 
+  if (model.task === 'image-segmentation' || model.task === 'object-detection') {
+    const pipelineOptions = backend === 'webgpu'
+      ? { device: 'webgpu', dtype: model.task === 'image-segmentation' ? 'fp16' : 'fp32', progress_callback: progressCallback }
+      : { dtype: 'q8', progress_callback: progressCallback };
+    const pipeline = await benchmark.measure('download', () => transformers.pipeline(model.task, model.repository, pipelineOptions));
+    return {
+      ioBinding: false,
+      preprocess: (canvas, { preview }) => preview ? createPreviewCanvas(canvas, model.task === 'image-segmentation' ? 768 : 960) : canvas,
+      run: canvas => pipeline(canvas, model.task === 'object-detection' ? { threshold: 0.2, percentage: false } : {}),
+      postprocess: output => output,
+      dispose: async () => { if (pipeline.dispose) await pipeline.dispose(); }
+    };
+  }
+
   if (model.task === 'depth-estimation') {
     const pipelineOptions = backend === 'webgpu'
       ? { device: 'webgpu', dtype: 'fp16', progress_callback: progressCallback }
