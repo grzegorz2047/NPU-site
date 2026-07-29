@@ -56,6 +56,41 @@ test('adds, removes and duplicates layers while maintaining active selection', (
   assert.equal(documentModel.activeLayerId, 'base');
 });
 
+test('supports add, duplicate, move and remove inside nested groups', () => {
+  const documentModel = createEditorDocument({
+    width: 100,
+    height: 100,
+    layers: [createGroupLayer({ id: 'group', children: [createRasterLayer({ id: 'a' }), createRasterLayer({ id: 'b' })] })]
+  });
+  documentModel.addLayer(createTextLayer({ id: 'c' }), 1, 'group');
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), ['a', 'c', 'b']);
+  assert.equal(documentModel.getLayerLocation('c').parent.id, 'group');
+
+  const duplicate = documentModel.duplicateLayer('c');
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), ['a', 'c', duplicate.id, 'b']);
+  documentModel.moveLayer(duplicate.id, 0);
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), [duplicate.id, 'a', 'c', 'b']);
+  documentModel.removeLayer('c');
+  assert.deepEqual(documentModel.getLayer('group').children.map(layer => layer.id), [duplicate.id, 'a', 'b']);
+});
+
+test('removing a group clears descendant selection and chooses a valid replacement', () => {
+  const documentModel = createEditorDocument({
+    width: 10,
+    height: 10,
+    layers: [
+      createRasterLayer({ id: 'base' }),
+      createGroupLayer({ id: 'group', children: [createRasterLayer({ id: 'nested' })] })
+    ],
+    activeLayerId: 'nested',
+    selectedLayerIds: ['nested']
+  });
+  documentModel.removeLayer('group');
+  assert.equal(documentModel.getLayer('nested'), null);
+  assert.equal(documentModel.activeLayerId, 'base');
+  assert.deepEqual(documentModel.selectedLayerIds, ['base']);
+});
+
 test('moves layers in bottom-to-top order', () => {
   const documentModel = createEditorDocument({
     width: 100,

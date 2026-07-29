@@ -11,7 +11,7 @@ import {
   updateLayerCommand
 } from './editor-history.js';
 
-const ICONS = Object.freeze({ raster: '▧', text: 'T', shape: '◆', group: '▣' });
+const ICONS = Object.freeze({ raster: '▧', text: 'T', shape: '◆', paint: '✎', group: '▣' });
 
 export class LayersPanel {
   constructor({ documentModel, history, renderer, root = document } = {}) {
@@ -61,7 +61,9 @@ export class LayersPanel {
     const e = this.elements;
     e.add?.addEventListener('click', () => {
       const layer = createRasterLayer({ name: 'Nowa warstwa' });
-      this.execute(addLayerCommand(layer));
+      const active = this.documentModel.activeLayer;
+      const parentId = active?.type === 'group' ? active.id : null;
+      this.execute(addLayerCommand(layer, null, parentId));
     });
     e.duplicate?.addEventListener('click', () => {
       if (this.documentModel.activeLayerId) this.execute(duplicateLayerCommand(this.documentModel.activeLayerId));
@@ -109,16 +111,25 @@ export class LayersPanel {
       return;
     }
     this.execute(createDocumentCommand('Usuń warstwy', documentModel => {
-      for (const id of ids) documentModel.removeLayer(id);
+      const selected = new Set(ids);
+      const roots = ids.filter(id => {
+        let parent = documentModel.getLayerLocation(id)?.parent;
+        while (parent) {
+          if (selected.has(parent.id)) return false;
+          parent = documentModel.getLayerLocation(parent.id)?.parent;
+        }
+        return true;
+      });
+      for (const id of roots) documentModel.removeLayer(id);
     }));
   }
 
   moveActive(delta) {
     const id = this.documentModel.activeLayerId;
-    const index = this.documentModel.getLayerIndex(id);
-    if (index < 0) return;
-    const target = Math.min(this.documentModel.layers.length - 1, Math.max(0, index + delta));
-    if (target !== index) this.execute(moveLayerCommand(id, target));
+    const location = this.documentModel.getLayerLocation(id);
+    if (!location) return;
+    const target = Math.min(location.siblings.length - 1, Math.max(0, location.index + delta));
+    if (target !== location.index) this.execute(moveLayerCommand(id, target));
   }
 
   handleShortcut(event) {
@@ -138,7 +149,7 @@ export class LayersPanel {
   }
 
   selectLayer(layerId, event) {
-    const ordered = [...this.documentModel.layers].reverse().map(layer => layer.id);
+    const ordered = flattenDisplayOrder(this.documentModel.layers);
     if (event.shiftKey && this.lastSelectedId && ordered.includes(this.lastSelectedId)) {
       const from = ordered.indexOf(this.lastSelectedId);
       const to = ordered.indexOf(layerId);
@@ -166,24 +177,32 @@ export class LayersPanel {
     const list = this.elements.list;
     if (!list) return;
     list.replaceChildren();
-    const layers = [...this.documentModel.layers].reverse();
-    if (!layers.length) {
+    if (!this.documentModel.layers.length) {
       const empty = document.createElement('p');
       empty.className = 'layers-empty';
       empty.textContent = 'Brak warstw. Otwórz obraz lub dodaj warstwę.';
       list.append(empty);
       return;
     }
-    for (const layer of layers) list.append(this.createLayerRow(layer));
+    this.appendLayerRows(list, this.documentModel.layers, 0);
   }
 
-  createLayerRow(layer) {
+  appendLayerRows(list, layers, depth) {
+    for (const layer of [...layers].reverse()) {
+      list.append(this.createLayerRow(layer, depth));
+      if (layer.type === 'group' && layer.children.length) this.appendLayerRows(list, layer.children, depth + 1);
+    }
+  }
+
+  createLayerRow(layer, depth = 0) {
     const row = document.createElement('div');
     row.className = 'layer-row';
     row.dataset.layerId = layer.id;
     row.dataset.active = String(layer.id === this.documentModel.activeLayerId);
     row.dataset.selected = String(this.documentModel.selectedLayerIds.includes(layer.id));
     row.dataset.locked = String(layer.locked);
+    row.dataset.depth = String(depth);
+    row.style.paddingLeft = `${3 + depth * 14}px`;
     row.tabIndex = 0;
     row.addEventListener('click', event => {
       if (event.target.closest('button,input')) return;
@@ -249,9 +268,9 @@ export class LayersPanel {
     if (e.opacityOutput) e.opacityOutput.textContent = `${Math.round((layer?.opacity ?? 1) * 100)}%`;
     if (e.duplicate) e.duplicate.disabled = !hasLayer;
     if (e.remove) e.remove.disabled = !hasLayer;
-    const index = hasLayer ? this.documentModel.getLayerIndex(layer.id) : -1;
-    if (e.up) e.up.disabled = index < 0 || index >= this.documentModel.layers.length - 1;
-    if (e.down) e.down.disabled = index <= 0;
+    const location = hasLayer ? this.documentModel.getLayerLocation(layer.id) : null;
+    if (e.up) e.up.disabled = !location || location.index >= location.siblings.length - 1;
+    if (e.down) e.down.disabled = !location || location.index <= 0;
   }
 
   refreshHistory() {
@@ -265,6 +284,18 @@ export class LayersPanel {
       redo.title = this.history.canRedo ? `Ponów: ${this.history.redoStack.at(-1).label}` : 'Brak operacji do ponowienia';
     }
   }
+}
+
+function flattenDisplayOrder(layers) {
+  const output = [];
+  const visit = collection => {
+    for (const layer of [...collection].reverse()) {
+      output.push(layer.id);
+      if (layer.type === 'group') visit(layer.children);
+    }
+  };
+  visit(layers);
+  return output;
 }
 
 function isEditable(target) {
