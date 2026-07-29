@@ -7,6 +7,7 @@ on:
       - 'editor.css'
       - 'editor-canvas.css'
       - 'editor-tools.css'
+      - 'editor-runtime.css'
       - 'src/editor-*.js'
       - 'src/search-core.js'
       - 'src/conversation-answer.js'
@@ -23,6 +24,7 @@ on:
       - 'editor.css'
       - 'editor-canvas.css'
       - 'editor-tools.css'
+      - 'editor-runtime.css'
       - 'src/editor-*.js'
       - 'src/search-core.js'
       - 'src/conversation-answer.js'
@@ -68,6 +70,13 @@ jobs:
             src/editor-project-format.js \
             src/editor-project-store.js \
             src/editor-renderer.js \
+            src/editor-model-registry.js \
+            src/editor-model-cache.js \
+            src/editor-inference-queue.js \
+            src/editor-inference-benchmark.js \
+            src/editor-inference-runtime.js \
+            src/editor-tiling.js \
+            src/editor-runtime-ui.js \
             src/editor-runtime.js \
             src/editor-workspace.js; do
             node --check "$file"

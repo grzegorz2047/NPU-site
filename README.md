@@ -52,7 +52,13 @@ Model edytora jest niezależny od DOM i rozdzielony na moduły:
 - `src/editor-workspace.js` — integracja nowego modelu z istniejącym pipeline'em AI i eksportem,
 - `src/editor-project-format.js` — wersjonowany format `.localstudio`, walidacja i migracje,
 - `src/editor-project-store.js` — IndexedDB, trwałe bloby, lista projektów i journal odzyskiwania,
-- `src/editor-project-controller.js` — autosave, import/eksport projektu i ostrzeżenie o niezapisanych zmianach.
+- `src/editor-project-controller.js` — autosave, import/eksport projektu i ostrzeżenie o niezapisanych zmianach,
+- `src/editor-model-registry.js` — kontrakty modeli, licencje i macierz NPU/WebGPU/WASM,
+- `src/editor-model-cache.js` — wersjonowany cache plików modeli,
+- `src/editor-inference-queue.js` — priorytety, postęp i anulowanie zadań,
+- `src/editor-inference-runtime.js` — wspólne API sesji, jawny fallback i reuse,
+- `src/editor-tiling.js` — kafelki z overlapem i składanie bez twardych szwów,
+- `src/editor-runtime-ui.js` — diagnostyka backendu, kolejki i benchmarku.
 
 Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'u pozostaje zgodny z presetami, korektami, MODNet, podmianą tła i redakcją, a kolejne wyniki AI mogą być dodawane jako osobna warstwa lub maska.
 
@@ -102,13 +108,14 @@ Przykład używa tego samego modułu odpowiedzi co właściwy audyt i pokazuje �
 
 ## Intel NPU i backendy
 
-Segmentacja obrazu korzysta z modelu `onnx-community/modnet-webnn`. Dostępne ścieżki:
+Wspólny runtime obrazu rejestruje obecnie dwa modele korzystające z jednego API:
 
-1. Intel NPU przez WebNN,
-2. WebGPU przez Transformers.js,
-3. WebAssembly na CPU przez Transformers.js.
+1. `onnx-community/modnet-webnn` — usuwanie tła przez WebNN/NPU, WebGPU albo WASM,
+2. `onnx-community/depth-anything-v2-small` — estymacja głębi przez WebGPU albo WASM; NPU pozostaje wyłączone do czasu weryfikacji operatorów.
 
-Tryb automatyczny próbuje backendów kolejno. Interfejs pokazuje runtime, który rzeczywiście został uruchomiony.
+Tryb `Auto` sprawdza zgodne backendy kolejno NPU → WebGPU → WASM. Tryb `Tylko NPU` kończy się czytelnym błędem zamiast wykonywać cichy fallback. Panel diagnostyczny pokazuje faktyczny backend, stan kolejki, możliwość anulowania, dostępność modeli i rozbicie czasu na pobieranie, preprocessing, transfery, inferencję i postprocessing.
+
+Pliki modeli są cache’owane z kluczem zawierającym wersję i backend, a gotowe sesje są ponownie używane. Pełna rozdzielczość może być przetwarzana kafelkami z overlapem i ważonym składaniem wyniku. Szczegóły znajdują się w `docs/EDITOR_NPU_RUNTIME.md`.
 
 ## Prywatność
 
@@ -125,10 +132,12 @@ python3 -m http.server 4173
 
 Otwórz `http://localhost:4173`.
 
+Dla pracy agentowej, walidacji Chromium i fallbacku przy ograniczonym DNS zobacz `docs/LOCAL_AGENT_WORKFLOW.md`.
+
 ## Testy
 
 ```bash
 npm test
 ```
 
-Testy obejmują rdzeń kompozycji obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, geometrię zaznaczeń, magic wand, historię pociągnięć, gumkę maskującą, cache warstw malowania, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
+Testy obejmują rdzeń kompozycji obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, geometrię zaznaczeń, magic wand, historię pociągnięć, gumkę maskującą, cache warstw malowania, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, preprocessing MODNet, rejestr i cache modeli, wybór oraz fallback backendów, kolejkę i anulowanie inferencji, reuse sesji, benchmark etapów, tiling z overlapem, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
