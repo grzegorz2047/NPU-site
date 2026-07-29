@@ -1,0 +1,8 @@
+export const languages=['pl','en'];
+export const copy={
+pl:{hero:'Sprawdź umowę zanim ją podpiszesz.',intro:'Dodaj dokument. Aplikacja lokalnie odnajdzie wypowiedzenie, kary, opłaty, automatyczne przedłużenie i odpowiedzialność.',add:'Dodaj umowę',example:'Zobacz działający przykład',review:'Sprawdź umowę',search:'Szukaj',language:'Język',found:'Znaleziono zapis',manual:'Sprawdź ręcznie',missing:'Brak jednoznacznego zapisu',source:'Fragment źródłowy',why:'Dlaczego to ważne',documents:'Dokumenty',diagnostics:'Diagnostyka',npu:'Jak uruchomić NPU?',empty:'Dodaj umowę, a następnie uruchom checklistę.'},
+en:{hero:'Check a contract before you sign it.',intro:'Add a document. The app locally finds termination, penalties, fees, automatic renewal and liability clauses.',add:'Add contract',example:'Open working example',review:'Review contract',search:'Search',language:'Language',found:'Clause found',manual:'Review manually',missing:'No clear clause found',source:'Source passage',why:'Why it matters',documents:'Documents',diagnostics:'Diagnostics',npu:'How to enable NPU?',empty:'Add a contract, then run the checklist.'}
+};
+export function detectLanguage(){const saved=localStorage.getItem('contractguard-language');if(languages.includes(saved))return saved;const browser=(navigator.languages?.[0]||navigator.language||'en').toLowerCase();return browser.startsWith('pl')?'pl':'en'}
+export function setLanguage(lang){const value=languages.includes(lang)?lang:'en';localStorage.setItem('contractguard-language',value);document.documentElement.lang=value;return value}
+export function translate(lang,root=document){const t=copy[lang]||copy.en;root.querySelectorAll('[data-i18n]').forEach(el=>{const value=t[el.dataset.i18n];if(value)el.textContent=value});return t}
