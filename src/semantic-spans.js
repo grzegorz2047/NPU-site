@@ -1,7 +1,8 @@
 const ADDRESS_TYPE=String.raw`(?:ul(?:ica|icy|icą|\.)?|aleja|alei|aleją|al\.|plac|placu|osiedle|osiedla|osiedlu|os\.)`;
 const STREET_NAME=String.raw`[A-ZĄĆĘŁŃÓŚŹŻ][\p{L}-]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][\p{L}-]+)*`;
 const BUILDING=String.raw`\d+[A-Za-z]?(?:\/\d+[A-Za-z]?)?(?:\s+m\.?\s*\d+[A-Za-z]?)?`;
-export const ADDRESS_RE=new RegExp(String.raw`\b${ADDRESS_TYPE}\s+${STREET_NAME}\s+${BUILDING}\b`,'giu');
+const APARTMENT_SUFFIX=String.raw`(?:\s+(?:(?:w\s+)?mieszkaniu(?:\s+nr\.?)?|mieszkanie(?:\s+nr\.?)?|(?:w\s+)?lokalu(?:\s+nr\.?)?|lokal(?:\s+nr\.?)?|nr\.?\s+lokalu)\s+\d+[A-Za-z]?(?:\/\d+[A-Za-z]?)?)?`;
+export const ADDRESS_RE=new RegExp(String.raw`\b${ADDRESS_TYPE}\s+${STREET_NAME}\s+${BUILDING}${APARTMENT_SUFFIX}\b`,'giu');
 const MEDICATION_PREFIX=String.raw`(?:lek(?:u|iem|i)?|tablet(?:ka|ki|kę|ek|kami)?|preparat(?:u|em)?|branie(?:\s+tabletki)?|(?:zalecił|zaleciła|kazał|kazała)\s+(?:brać|stosować|przyjmować|zażywać)|przepisał|przepisała|stosować|przyjmować|zażywać)`;
 export const MEDICATION_RE=new RegExp(String.raw`\b${MEDICATION_PREFIX}\s+(?:lek(?:u)?\s+|tablet(?:kę|ki|ka)\s+|preparat\s+)?((?!leczenie\b|lek(?:i|u)?\b|tablet(?:ka|ki|kę)\b)[\p{L}][\p{L}\d-]{2,})\b`,'giu');
 const MEDICATION_PATTERN={type:'medication',mask:'[MEDICATION]',re:MEDICATION_RE,capture:1};
