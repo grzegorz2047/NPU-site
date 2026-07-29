@@ -62,7 +62,8 @@ export class SegmentationEngine {
       const completed = await this.currentTask.promise;
       this.backend = completed.backend;
       this.preference = mode;
-      this.runtimeLabel = runtimeLabel(completed.backend, false);
+      const session = this.runtime.diagnostics().sessionDetails?.find(item => item.key.endsWith(`:${completed.backend}`));
+      this.runtimeLabel = runtimeLabel(completed.backend, Boolean(session?.ioBinding));
       return completed.result;
     } finally {
       this.currentTask = null;
@@ -71,7 +72,7 @@ export class SegmentationEngine {
 
   async runDepth(canvas, { preference = 'auto', preview = true, priority = 5 } = {}) {
     assertCanvas(canvas);
-    const task = this.runtime.enqueue({
+    this.currentTask = this.runtime.enqueue({
       modelId: DEPTH_MODEL_ID,
       input: canvas,
       mode: normalizePreference(preference),
@@ -80,11 +81,18 @@ export class SegmentationEngine {
       metadata: { taskId: `depth-${Date.now().toString(36)}` },
       onProgress: event => this.progress(normalizeProgress(event))
     });
-    return task.promise;
+    try {
+      return await this.currentTask.promise;
+    } finally {
+      this.currentTask = null;
+    }
   }
 
   cancel(reason = 'Inferencja została anulowana.') {
-    return this.currentTask?.cancel(reason) ?? false;
+    if (this.currentTask?.cancel(reason)) return true;
+    const queue = this.runtime.diagnostics().queue;
+    const task = queue.running[0] ?? queue.pending[0];
+    return task ? this.runtime.queue.cancel(task.id, reason) : false;
   }
 
   diagnostics() {
