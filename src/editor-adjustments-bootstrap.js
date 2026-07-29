@@ -27,6 +27,7 @@ async function start(attempt = 0) {
   await loadExtension('./editor-smart-select-bootstrap.js', 'Smart Select', 'localStudioSmartSelect');
   await loadExtension('./editor-depth-bootstrap.js', 'głębi', 'localStudioDepth');
   await loadExtension('./editor-restoration-bootstrap.js', 'restoration', 'localStudioRestoration');
+  await installInspector();
 }
 
 async function loadExtension(path, label, globalKey) {
@@ -35,6 +36,15 @@ async function loadExtension(path, label, globalKey) {
     await waitForGlobal(globalKey);
   } catch (error) {
     console.error(`Nie udało się uruchomić modułu ${label}.`, error);
+  }
+}
+
+async function installInspector() {
+  try {
+    const { installInspectorNavigation } = await import('./editor-inspector-nav.js');
+    installInspectorNavigation(document);
+  } catch (error) {
+    console.error('Nie udało się uruchomić nawigacji panelu bocznego.', error);
   }
 }
 
