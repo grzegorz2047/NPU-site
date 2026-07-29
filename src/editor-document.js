@@ -1,4 +1,4 @@
-export const LAYER_TYPES = Object.freeze(['raster', 'text', 'shape', 'group']);
+export const LAYER_TYPES = Object.freeze(['raster', 'text', 'shape', 'paint', 'group']);
 export const BLEND_MODES = Object.freeze(['normal', 'multiply', 'screen', 'overlay']);
 
 let fallbackId = 0;
@@ -72,6 +72,7 @@ export function createLayer(type, options = {}) {
 export const createRasterLayer = options => createLayer('raster', options);
 export const createTextLayer = options => createLayer('text', options);
 export const createShapeLayer = options => createLayer('shape', options);
+export const createPaintLayer = options => createLayer('paint', options);
 export const createGroupLayer = options => createLayer('group', options);
 
 export function normalizeLayer(layer) {
@@ -319,13 +320,26 @@ function normalizeContent(type, content) {
   }
   if (type === 'shape') {
     return {
-      shape: ['rectangle', 'ellipse', 'line'].includes(content.shape) ? content.shape : 'rectangle',
+      shape: ['rectangle', 'ellipse', 'line', 'arrow'].includes(content.shape) ? content.shape : 'rectangle',
       width: Math.max(0, finite(content.width, 100)),
       height: Math.max(0, finite(content.height, 100)),
       fill: content.fill === null ? null : String(content.fill ?? '#31c48d'),
       stroke: content.stroke === null ? null : String(content.stroke ?? '#ffffff'),
       strokeWidth: Math.max(0, finite(content.strokeWidth, 0)),
-      radius: Math.max(0, finite(content.radius, 0))
+      radius: Math.max(0, finite(content.radius, 0)),
+      shadowColor: content.shadowColor === null ? null : String(content.shadowColor ?? 'rgba(0,0,0,.35)'),
+      shadowBlur: Math.max(0, finite(content.shadowBlur, 0)),
+      shadowOffsetX: finite(content.shadowOffsetX, 0),
+      shadowOffsetY: finite(content.shadowOffsetY, 0)
+    };
+  }
+  if (type === 'paint') {
+    return {
+      width: positiveInteger(content.width, 0),
+      height: positiveInteger(content.height, 0),
+      strokes: cloneValue(content.strokes ?? []),
+      fills: cloneValue(content.fills ?? []),
+      operationOrder: cloneValue(content.operationOrder ?? [...(content.fills ?? []).map(item => item.id), ...(content.strokes ?? []).map(item => item.id)])
     };
   }
   return {};
@@ -343,7 +357,7 @@ function findLayer(layers, id) {
 }
 
 function defaultLayerName(type) {
-  return ({ raster: 'Warstwa rastrowa', text: 'Warstwa tekstowa', shape: 'Kształt', group: 'Grupa' })[type];
+  return ({ raster: 'Warstwa rastrowa', text: 'Warstwa tekstowa', shape: 'Kształt', paint: 'Malowanie', group: 'Grupa' })[type];
 }
 
 function cloneValue(value) {
