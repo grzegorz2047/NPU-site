@@ -49,6 +49,8 @@ Klucz cache zawiera identyfikator modelu, wersję oraz backend. Zmiana wersji ni
 
 CacheStorage jest optymalizacją. Jeżeli przeglądarka go blokuje, runtime nadal używa cache w pamięci bieżącej karty.
 
+Dla sesji NPU diagnostyka wykrywa dostępność API IO binding / MLTensor. Samo wykrycie API nie oznacza jeszcze, że każde wywołanie modelu używa jawnego powiązania buforów; adapter musi zaimplementować tę ścieżkę osobno.
+
 ## Kolejka i anulowanie
 
 Kolejka wykonuje domyślnie jedno zadanie naraz, aby ograniczyć szczytowe użycie pamięci. Wyższy priorytet wyprzedza zadania oczekujące, a zadania o tym samym priorytecie zachowują kolejność FIFO.
