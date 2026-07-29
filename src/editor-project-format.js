@@ -14,6 +14,7 @@ export class UnsupportedProjectVersionError extends Error {
 export function createProjectRecord(options = {}) {
   const now = options.updatedAt ?? new Date().toISOString();
   const documentSnapshot = clonePlain(options.document ?? {});
+  const historySnapshot = clonePlain(options.history ?? null);
   const id = String(options.id ?? documentSnapshot.id ?? createPortableId());
   return validateProjectRecord({
     schemaVersion: PROJECT_SCHEMA_VERSION,
@@ -22,9 +23,9 @@ export function createProjectRecord(options = {}) {
     createdAt: options.createdAt ?? documentSnapshot.createdAt ?? now,
     updatedAt: now,
     document: documentSnapshot,
-    history: clonePlain(options.history ?? null),
+    history: historySnapshot,
     settings: clonePlain(options.settings ?? {}),
-    assetIds: [...new Set(options.assetIds ?? referencedAssetIds(documentSnapshot))]
+    assetIds: [...new Set(options.assetIds ?? referencedAssetIds(documentSnapshot, historySnapshot))]
   });
 }
 
@@ -45,7 +46,7 @@ export function validateProjectRecord(record) {
     document: clonePlain(record.document),
     history: clonePlain(record.history ?? null),
     settings: clonePlain(record.settings ?? {}),
-    assetIds: [...new Set((record.assetIds ?? referencedAssetIds(record.document)).map(String))]
+    assetIds: [...new Set((record.assetIds ?? referencedAssetIds(record.document, record.history)).map(String))]
   };
 }
 
@@ -63,15 +64,21 @@ export function migrateProjectRecord(input) {
   return validateProjectRecord({ ...project, schemaVersion: PROJECT_SCHEMA_VERSION });
 }
 
-export function referencedAssetIds(documentSnapshot) {
+export function referencedAssetIds(documentSnapshot, historySnapshot = null) {
   const ids = new Set();
-  const visit = layer => {
-    if (layer?.content?.assetId) ids.add(String(layer.content.assetId));
-    if (layer?.mask?.assetId) ids.add(String(layer.mask.assetId));
-    for (const child of layer?.children ?? []) visit(child);
+  const visit = value => {
+    if (!value || typeof value !== 'object') return;
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    for (const [key, nested] of Object.entries(value)) {
+      if (/assetid$/i.test(key) && typeof nested === 'string' && nested) ids.add(nested);
+      else visit(nested);
+    }
   };
-  for (const layer of documentSnapshot?.layers ?? []) visit(layer);
-  if (documentSnapshot?.metadata?.legacySourceAssetId) ids.add(String(documentSnapshot.metadata.legacySourceAssetId));
+  visit(documentSnapshot);
+  visit(historySnapshot);
   return [...ids];
 }
 
@@ -127,6 +134,7 @@ const MIGRATIONS = new Map([
   [0, project => {
     const legacy = project.project && !project.document ? project.project : project;
     const document = clonePlain(legacy.document ?? legacy.snapshot ?? {});
+    const history = legacy.history ?? null;
     return {
       schemaVersion: 1,
       id: legacy.id ?? document.id ?? createPortableId(),
@@ -134,9 +142,9 @@ const MIGRATIONS = new Map([
       createdAt: legacy.createdAt ?? document.createdAt,
       updatedAt: legacy.updatedAt ?? document.updatedAt,
       document,
-      history: legacy.history ?? null,
+      history,
       settings: legacy.settings ?? {},
-      assetIds: legacy.assetIds ?? (Object.keys(legacy.assets ?? {}).length ? Object.keys(legacy.assets) : referencedAssetIds(document))
+      assetIds: legacy.assetIds ?? (Object.keys(legacy.assets ?? {}).length ? Object.keys(legacy.assets) : referencedAssetIds(document, history))
     };
   }]
 ]);
