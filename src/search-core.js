@@ -75,13 +75,40 @@ export function cosineSimilarity(a, b) {
   return score;
 }
 
+function keywordTokens(value) {
+  return normalizeWhitespace(value)
+    .toLocaleLowerCase()
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replaceAll('ł', 'l')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((term) => term.length > 1);
+}
+
+const POLISH_SUFFIXES = ['owania', 'owanie', 'owaniu', 'owego', 'owej', 'ami', 'ach', 'enie', 'eniu', 'ienia', 'ienie', 'ieniu', 'owac', 'ujac', 'ajac', 'iec', 'ac', 'ic', 'yc', 'ec', 'em', 'om', 'ie', 'a', 'e', 'i', 'y'];
+
+function keywordStem(token) {
+  if (token.length < 5) return token;
+  const suffix = POLISH_SUFFIXES.find((candidate) => token.endsWith(candidate) && token.length - candidate.length >= 4);
+  return suffix ? token.slice(0, -suffix.length) : token;
+}
+
+function tokensShareRoot(queryToken, textToken) {
+  if (queryToken === textToken) return true;
+  const queryStem = keywordStem(queryToken);
+  const textStem = keywordStem(textToken);
+  if (queryStem === textStem && queryStem.length >= 4) return true;
+  const shorterLength = Math.min(queryStem.length, textStem.length);
+  return shorterLength >= 6 && (queryStem.startsWith(textStem) || textStem.startsWith(queryStem));
+}
+
 export function keywordScore(query, text) {
-  const terms = normalizeWhitespace(query).toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length > 1);
+  const terms = keywordTokens(query);
   if (!terms.length) return 0;
-  const haystack = normalizeWhitespace(text).toLocaleLowerCase();
+  const textTokens = keywordTokens(text);
   let matches = 0;
   for (const term of new Set(terms)) {
-    const occurrences = haystack.split(term).length - 1;
+    const occurrences = textTokens.filter((token) => tokensShareRoot(term, token)).length;
     if (occurrences > 0) matches += 1 + Math.log1p(occurrences);
   }
   return Math.min(1, matches / (terms.length * 1.6));
