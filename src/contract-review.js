@@ -1,10 +1,10 @@
-import{rankChunks}from'./search-core.js';
+import{rankChunks,keywordScore}from'./search-core.js';
 
 const PL=[
 ['duration','Czas trwania i przedłużenie','Jaki jest czas trwania umowy i czy przedłuża się automatycznie?','Automatyczne przedłużenie może związać Cię umową na kolejny okres.',/automatyczn|przedłuż|czas określony|czas nieokreślony|okres obowiązywania|kolejny okres/i],
 ['termination','Wypowiedzenie','Jak można wypowiedzieć umowę i jaki jest okres wypowiedzenia?','Długi termin lub szczególna forma wypowiedzenia utrudniają wyjście z umowy.',/wypowiedze|rozwiąza|odstąpi|okres wypowiedzenia|forma pisemna/i],
 ['fees','Opłaty i zmiana ceny','Jakie są opłaty i czy cena może zostać zmieniona jednostronnie?','Poza ceną podstawową mogą występować opłaty dodatkowe lub indeksacja.',/opłat|wynagrodze|cennik|podwyż|zmian.*cen|indeksac|waloryzac|prowizj/i],
-['penalties','Kary i odsetki','Czy umowa przewiduje kary, opłaty za rozwiązanie lub odsetki?','Sankcje mogą być nieproporcjonalne do wartości świadczenia.',/kara umowna|odsetk|sankcj|opłat.*rozwiąza|rekompensat|obciążon/i],
+['penalties','Kary i odsetki','Czy umowa przewiduje kary, opłaty za rozwiązanie lub odsetki?','Sankcje mogą być nieproporcjonalne do wartości świadczenia.',/kar[ayę]|kara umowna|odsetk|sankcj|opłat.*rozwiąza|rekompensat|obciążon/i],
 ['liability','Odpowiedzialność','Kto odpowiada za szkody i czy odpowiedzialność jest ograniczona?','Wyłączenie odpowiedzialności może przenieść większość ryzyka na Ciebie.',/odpowiedzialno|nie odpowiada|wyłącz.*odpowiedzial|ogranicz.*odpowiedzial|szkod/i],
 ['obligations','Obowiązki i terminy','Jakie obowiązki i terminy musi spełnić klient?','Niedopełnienie obowiązku może uruchomić opłatę lub odmowę świadczenia.',/zobowiązan|obowiąz|termin|powinien|musi|zgłos|dostarczy/i],
 ['privacy','Dane osobowe i zgody','Jakie dane są przetwarzane i jakie zgody obejmuje umowa?','Warto odróżnić dane konieczne od zgód marketingowych.',/dane osobowe|rodo|przetwarza|zgod.*marketing|administrator danych|udostępni/i],
@@ -21,8 +21,8 @@ const EN=[
 ['disputes','Disputes and governing law','How are disputes resolved and which law or court applies?','A distant court, arbitration or foreign law can increase enforcement costs.',/governing law|jurisdiction|dispute|arbitration|mediation/i]
 ];
 function build(rows){return rows.map(([id,title,question,why,signals])=>({id,title,question,why,signals}))}
-export const CONTRACT_CHECKS={pl:build(PL),en:build(EN)};
-export function getContractChecks(lang='pl'){return CONTRACT_CHECKS[lang]||CONTRACT_CHECKS.en}
-export function evaluateContractCheck(check,chunks,queryVector=null,limit=2){const ranked=rankChunks(chunks,queryVector,check.question,limit);const best=ranked[0]??null;if(!best)return{check,status:'missing',findings:[],score:0};check.signals.lastIndex=0;const explicit=check.signals.test(best.text);const score=Number(best.score??0);const status=explicit||score>=.32?'found':score>=.12?'review':'missing';return{check,status,findings:ranked,score}}
+export const CONTRACT_CHECKS={pl:build(PL),en:build(EN)};export function getContractChecks(lang='pl'){return CONTRACT_CHECKS[lang]||CONTRACT_CHECKS.en}
+function signalMatch(check,text){check.signals.lastIndex=0;return check.signals.test(text)}
+export function evaluateContractCheck(check,chunks,queryVector=null,limit=2){const semantic=rankChunks(chunks,queryVector,check.question,Math.max(limit,12));const candidates=chunks.map(chunk=>{const ranked=semantic.find(x=>x.id===chunk.id);const explicit=signalMatch(check,chunk.text);return{...chunk,score:(ranked?.score??keywordScore(check.question,chunk.text))+(explicit?.8:0),explicit}}).filter(x=>x.score>.08).sort((a,b)=>b.score-a.score).slice(0,limit);const best=candidates[0]??null;if(!best)return{check,status:'missing',findings:[],score:0};const status=best.explicit||best.score>=.32?'found':best.score>=.12?'review':'missing';return{check,status,findings:candidates,score:best.score}}
 export function reviewContract(chunks,lang='pl'){return getContractChecks(lang).map(check=>evaluateContractCheck(check,chunks))}
 export function contractSummary(results){const found=results.filter(x=>x.status==='found').length,review=results.filter(x=>x.status==='review').length,missing=results.filter(x=>x.status==='missing').length;return{found,review,missing,total:results.length}}
