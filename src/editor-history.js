@@ -159,16 +159,16 @@ export class CommandHistory {
 }
 
 export function createDocumentCommand(label, mutate, options) { return new SnapshotCommand(label, mutate, options); }
-export function addLayerCommand(layer, index) {
+export function addLayerCommand(layer, index, parentId = null) {
   const layerSnapshot = clonePlain(layer);
-  return createDocumentCommand(`Dodaj: ${layer.name}`, document => document.addLayer(layerSnapshot, index ?? document.layers.length));
+  return createDocumentCommand(`Dodaj: ${layer.name}`, document => document.addLayer(layerSnapshot, index, parentId));
 }
 export function removeLayerCommand(layerId) { return createDocumentCommand('Usuń warstwę', document => document.removeLayer(layerId)); }
 export function duplicateLayerCommand(layerId) {
   return createDocumentCommand('Duplikuj warstwę', document => {
     const source = document.getLayer(layerId);
     if (!source) throw new Error(`Nie znaleziono warstwy ${layerId}.`);
-    document.addLayer(cloneLayer(source), document.getLayerIndex(layerId) + 1);
+    document.duplicateLayer(layerId);
   });
 }
 export function moveLayerCommand(layerId, targetIndex) { return createDocumentCommand('Zmień kolejność warstw', document => document.moveLayer(layerId, targetIndex)); }
