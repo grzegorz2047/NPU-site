@@ -23,18 +23,27 @@ async function start(attempt = 0) {
       before: () => editor.renderer.render(editor.document, { includeAdjustments: false })
     });
   }
-  await loadExtension('./editor-retouch-bootstrap.js', 'retuszu');
-  await loadExtension('./editor-smart-select-bootstrap.js', 'Smart Select');
-  await loadExtension('./editor-depth-bootstrap.js', 'głębi');
-  await loadExtension('./editor-restoration-bootstrap.js', 'restoration');
+  await loadExtension('./editor-retouch-bootstrap.js', 'retuszu', 'localStudioRetouch');
+  await loadExtension('./editor-smart-select-bootstrap.js', 'Smart Select', 'localStudioSmartSelect');
+  await loadExtension('./editor-depth-bootstrap.js', 'głębi', 'localStudioDepth');
+  await loadExtension('./editor-restoration-bootstrap.js', 'restoration', 'localStudioRestoration');
 }
 
-async function loadExtension(path, label) {
+async function loadExtension(path, label, globalKey) {
   try {
     await import(path);
+    await waitForGlobal(globalKey);
   } catch (error) {
     console.error(`Nie udało się uruchomić modułu ${label}.`, error);
   }
+}
+
+async function waitForGlobal(key, attempts = 160) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (globalThis[key]) return globalThis[key];
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  throw new Error(`Moduł ${key} nie zakończył inicjalizacji.`);
 }
 
 if (typeof document !== 'undefined') start();
