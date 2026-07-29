@@ -1,0 +1,47 @@
+name: Editor core
+
+on:
+  pull_request:
+    paths:
+      - 'editor.html'
+      - 'editor.css'
+      - 'src/editor-*.js'
+      - 'tests/editor-*.test.mjs'
+      - 'package.json'
+      - '.github/workflows/editor-core.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'editor.html'
+      - 'editor.css'
+      - 'src/editor-*.js'
+      - 'tests/editor-*.test.mjs'
+      - 'package.json'
+      - '.github/workflows/editor-core.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm test
+      - name: Check editor module syntax
+        run: |
+          for file in \
+            src/editor-app.js \
+            src/editor-core.js \
+            src/editor-document.js \
+            src/editor-history.js \
+            src/editor-layers-ui.js \
+            src/editor-renderer.js \
+            src/editor-runtime.js \
+            src/editor-workspace.js; do
+            node --check "$file"
+          done
