@@ -36,8 +36,11 @@ export class RestorationEngine {
     const taskId = `restoration-${normalized.profileId}-${Date.now().toString(36)}`;
     this.task = this.runtime.queue.enqueue(async ({ signal, reportProgress }) => {
       const startedAt = now();
-      const memory = estimateRestorationMemory(canvas.width, canvas.height, { scale: normalized.scale, tileSize: normalized.tileSize });
-      if (memory.megapixels > this.maxMegapixels) throw new Error(`Wynik miałby ${memory.megapixels.toFixed(1)} MP. Zmniejsz skalę lub obraz.`);
+      const workingScale = normalized.modelId ? Math.max(normalized.scale, normalized.modelOutputScale) : normalized.scale;
+      const memory = estimateRestorationMemory(canvas.width, canvas.height, { scale: workingScale, tileSize: normalized.tileSize });
+      memory.finalScale = normalized.scale;
+      memory.workingScale = workingScale;
+      if (memory.megapixels > this.maxMegapixels) throw new Error(`Rozmiar roboczy miałby ${memory.megapixels.toFixed(1)} MP. Zmniejsz skalę lub obraz.`);
       reportProgress({ stage: 'preprocessing', label: options.preview ? 'Przygotowanie podglądu 1:1' : 'Przygotowanie kafelków', progress: 2 });
       let result;
       let fallbackReason = null;
