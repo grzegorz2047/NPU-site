@@ -57,6 +57,7 @@ const SHELL = [
   './src/editor-depth-ui.js',
   './src/editor-depth-bootstrap.js',
   './src/editor-restoration-core.js',
+  './src/editor-restoration-accumulator.js',
   './src/editor-restoration-engine.js',
   './src/editor-restoration-commands.js',
   './src/editor-restoration-ui.js',
