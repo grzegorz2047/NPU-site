@@ -22,7 +22,20 @@ Pełnosprawny lokalny edytor obrazu w kompaktowym układzie typu desktopowego. U
 - tworzenie przezroczystych stickerów z obwódką i cieniem,
 - gotowe presety: portret do CV, sticker PNG i rozmyte tło portretu,
 - ręczną anonimizację screenshotów przez blur, pikselizację albo czarny pasek,
+- niedestrukcyjny dokument z warstwami, maskami, trybami mieszania oraz undo/redo,
 - eksport do PNG, JPEG i WebP.
+
+#### Rdzeń dokumentu
+
+Model edytora jest niezależny od DOM i rozdzielony na moduły:
+
+- `src/editor-document.js` — dokument, warstwy raster/tekst/kształt/grupa, zaznaczenie i serializacja,
+- `src/editor-history.js` — odwracalne komendy, undo/redo, limit i kompaktowanie historii,
+- `src/editor-renderer.js` — kompozycja canvasa, maski, maski przycinające i blend modes,
+- `src/editor-layers-ui.js` — panel warstw i skróty klawiaturowe,
+- `src/editor-workspace.js` — integracja nowego modelu z istniejącym pipeline'em AI i eksportem.
+
+Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'u pozostaje zgodny z presetami, korektami, MODNet, podmianą tła i redakcją, a kolejne wyniki AI mogą być dodawane jako osobna warstwa lub maska.
 
 #### Przykłady użycia
 
@@ -73,4 +86,4 @@ Otwórz `http://localhost:4173`.
 npm test
 ```
 
-Testy obejmują rdzeń kompozycji obrazu, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
+Testy obejmują rdzeń kompozycji obrazu, model dokumentu i warstw, undo/redo, maski i blend modes, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
