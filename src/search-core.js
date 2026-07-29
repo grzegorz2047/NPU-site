@@ -96,7 +96,7 @@ function tokensShareRoot(queryToken, textToken) {
   if (queryToken === textToken) return true;
   const shorterLength = Math.min(queryToken.length, textToken.length);
   if (shorterLength < 4) return false;
-  const requiredPrefix = Math.max(4, Math.ceil(shorterLength * 0.7));
+  const requiredPrefix = Math.max(4, Math.ceil(shorterLength * 0.8));
   return commonPrefixLength(queryToken, textToken) >= requiredPrefix;
 }
 
