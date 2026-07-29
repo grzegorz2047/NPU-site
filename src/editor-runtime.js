@@ -5,6 +5,7 @@ import { ModelRegistry, modelCacheKey } from './editor-model-registry.js';
 const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm';
 const MODNET_MODEL_ID = 'modnet-portrait-matting';
 const DEPTH_MODEL_ID = 'depth-anything-v2-small';
+const RESTORATION_MODEL_IDS = Object.freeze(['swin2sr-lightweight-x2', 'swin2sr-realworld-x4', 'swin2sr-compressed-x4']);
 
 export class SegmentationEngine {
   constructor({ status = () => {}, progress = () => {}, runtime = null } = {}) {
@@ -185,6 +186,20 @@ async function createTransformersSession({ model, backend, signal, benchmark, on
     };
   }
 
+  if (model.task === 'image-segmentation' || model.task === 'object-detection') {
+    const pipelineOptions = backend === 'webgpu'
+      ? { device: 'webgpu', dtype: model.task === 'image-segmentation' ? 'fp16' : 'fp32', progress_callback: progressCallback }
+      : { dtype: 'q8', progress_callback: progressCallback };
+    const pipeline = await benchmark.measure('download', () => transformers.pipeline(model.task, model.repository, pipelineOptions));
+    return {
+      ioBinding: false,
+      preprocess: (canvas, { preview }) => preview ? createPreviewCanvas(canvas, model.task === 'image-segmentation' ? 768 : 960) : canvas,
+      run: canvas => pipeline(canvas, model.task === 'object-detection' ? { threshold: 0.2, percentage: false } : {}),
+      postprocess: output => output,
+      dispose: async () => { if (pipeline.dispose) await pipeline.dispose(); }
+    };
+  }
+
   if (model.task === 'depth-estimation') {
     const pipelineOptions = backend === 'webgpu'
       ? { device: 'webgpu', dtype: 'fp16', progress_callback: progressCallback }
@@ -195,6 +210,24 @@ async function createTransformersSession({ model, backend, signal, benchmark, on
       preprocess: (canvas, { preview }) => preview ? createPreviewCanvas(canvas, 512) : canvas,
       run: canvas => pipeline(canvas),
       postprocess: output => output?.depth ?? output,
+      dispose: async () => { if (pipeline.dispose) await pipeline.dispose(); }
+    };
+  }
+
+  if (model.task === 'image-to-image') {
+    const pipelineOptions = backend === 'webgpu'
+      ? { device: 'webgpu', dtype: 'fp16', progress_callback: progressCallback }
+      : { dtype: 'q8', progress_callback: progressCallback };
+    status(`Ładowanie ${model.name}…`);
+    const pipeline = await benchmark.measure('download', () => transformers.pipeline('image-to-image', model.repository, pipelineOptions));
+    return {
+      ioBinding: false,
+      preprocess: async canvas => {
+        throwIfAborted(signal);
+        return transformers.RawImage?.read ? transformers.RawImage.read(canvas) : canvas;
+      },
+      run: image => pipeline(image),
+      postprocess: output => Array.isArray(output) ? output[0] : output,
       dispose: async () => { if (pipeline.dispose) await pipeline.dispose(); }
     };
   }
@@ -274,6 +307,6 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw new DOMException(String(signal.reason || 'Operacja anulowana.'), 'AbortError');
 }
 
-export { MODNET_MODEL_ID, DEPTH_MODEL_ID };
+export { MODNET_MODEL_ID, DEPTH_MODEL_ID, RESTORATION_MODEL_IDS };
 
 if (typeof document !== 'undefined') import('./editor-runtime-ui.js').catch(() => {});

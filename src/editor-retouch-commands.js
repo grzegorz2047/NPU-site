@@ -13,7 +13,7 @@ export function createAppendRetouchStrokeCommand(strokeInput, { layerId = null, 
         mask: createLayerMask({ enabled: true, metadata: { mode: 'full' } }),
         children: []
       });
-      documentModel.addLayer(layer, index ?? documentModel.layers.length);
+      layer = documentModel.addLayer(layer, index ?? documentModel.layers.length);
     }
     if (!isRetouchLayer(layer)) throw new Error('Pociągnięcie retuszu wymaga warstwy retuszu.');
     if (layer.locked) throw new Error('Warstwa retuszu jest zablokowana.');

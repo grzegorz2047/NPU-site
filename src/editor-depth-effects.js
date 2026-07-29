@@ -132,7 +132,7 @@ function weightedBoxBlur(source, mask, width, height, radius, bokeh) {
   for (let pixel = 0; pixel < mask.length; pixel += 1) {
     const offset = pixel * 4;
     const luminance = (source[offset] + source[offset + 1] + source[offset + 2]) / 765;
-    const weight = mask[pixel] * (1 + Math.max(0, luminance - 0.65) * 2.8 * bokeh);
+    const weight = Math.max(0.04, mask[pixel]) * (1 + Math.max(0, luminance - 0.65) * 2.8 * bokeh);
     weights[pixel] = weight;
     for (let channel = 0; channel < 4; channel += 1) premultiplied[offset + channel] = source[offset + channel] * weight;
   }
