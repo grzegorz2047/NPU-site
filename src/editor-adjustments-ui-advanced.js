@@ -18,7 +18,7 @@ const CHANNEL_LABELS = { rgb: 'RGB', red: 'Czerwony', green: 'Zielony', blue: 'N
 export function renderCurves(panel, container, descriptor) {
   container.append(createSelectControl('Kanał krzywej', CHANNELS, panel.curveChannel, CHANNEL_LABELS, value => {
     panel.curveChannel = value;
-    panel.renderControls(descriptor);
+    panel.renderControls(panel.activeLayer?.metadata?.adjustment ?? descriptor);
   }));
   const wrap = document.createElement('div');
   wrap.className = 'curve-editor-wrap';
@@ -37,7 +37,8 @@ export function renderCurves(panel, container, descriptor) {
   canvas.addEventListener('contextmenu', event => {
     event.preventDefault();
     const location = curvePointFromEvent(event, canvas);
-    const next = clone(points);
+    const current = panel.activeLayer?.metadata?.adjustment?.parameters?.channels?.[panel.curveChannel] ?? points;
+    const next = clone(current);
     const index = nearestCurvePoint(next, location.x, location.y, 18);
     if (index > 0 && index < next.length - 1) {
       next.splice(index, 1);
@@ -54,7 +55,8 @@ export function renderCurves(panel, container, descriptor) {
 
 function startCurveDrag(panel, event, canvas, descriptor) {
   const location = curvePointFromEvent(event, canvas);
-  const points = clone(descriptor.parameters.channels[panel.curveChannel]);
+  const current = panel.activeLayer?.metadata?.adjustment?.parameters?.channels?.[panel.curveChannel] ?? descriptor.parameters.channels[panel.curveChannel];
+  const points = clone(current);
   let index = nearestCurvePoint(points, location.x, location.y, 16);
   if (index < 0) {
     points.push([location.x, location.y]);
