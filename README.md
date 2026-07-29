@@ -33,9 +33,21 @@ Model edytora jest niezależny od DOM i rozdzielony na moduły:
 - `src/editor-history.js` — odwracalne komendy, undo/redo, limit i kompaktowanie historii,
 - `src/editor-renderer.js` — kompozycja canvasa, maski, maski przycinające i blend modes,
 - `src/editor-layers-ui.js` — panel warstw i skróty klawiaturowe,
-- `src/editor-workspace.js` — integracja nowego modelu z istniejącym pipeline'em AI i eksportem.
+- `src/editor-workspace.js` — integracja nowego modelu z istniejącym pipeline'em AI i eksportem,
+- `src/editor-project-format.js` — wersjonowany format `.localstudio`, walidacja i migracje,
+- `src/editor-project-store.js` — IndexedDB, trwałe bloby, lista projektów i journal odzyskiwania,
+- `src/editor-project-controller.js` — autosave, import/eksport projektu i ostrzeżenie o niezapisanych zmianach.
 
 Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'u pozostaje zgodny z presetami, korektami, MODNet, podmianą tła i redakcją, a kolejne wyniki AI mogą być dodawane jako osobna warstwa lub maska.
+
+#### Projekty lokalne
+
+- dokument, historia undo/redo, ustawienia i binarne zasoby obrazu są automatycznie zapisywane w IndexedDB,
+- zapis jest wykonywany po bezczynności z debounce i nie blokuje renderowania płótna,
+- po odświeżeniu otwierany jest ostatni projekt; niedokończony zapis może zostać odtworzony z journala,
+- panel pokazuje ostatnie projekty i pozwala je otwierać lub usuwać razem ze wszystkimi blobami,
+- projekt można pobrać jako `.localstudio` i ponownie zaimportować,
+- nowsza, nieobsługiwana wersja formatu daje czytelny komunikat zamiast częściowego otwarcia.
 
 #### Przykłady użycia
 
@@ -86,4 +98,4 @@ Otwórz `http://localhost:4173`.
 npm test
 ```
 
-Testy obejmują rdzeń kompozycji obrazu, model dokumentu i warstw, undo/redo, maski i blend modes, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
+Testy obejmują rdzeń kompozycji obrazu, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.

@@ -1,6 +1,7 @@
 import { createEditorDocument, createId, createLayerMask, createRasterLayer } from './editor-document.js';
 import { addLayerCommand, CommandHistory, updateLayerCommand } from './editor-history.js';
 import { LayersPanel } from './editor-layers-ui.js';
+import { ProjectController } from './editor-project-controller.js';
 import { CanvasDocumentRenderer } from './editor-renderer.js';
 
 const canvas = document.getElementById('result-canvas');
@@ -14,8 +15,51 @@ if (canvas) {
   });
   const layersPanel = new LayersPanel({ documentModel, history, renderer, root: document });
   const documentTitle = document.getElementById('document-title');
+  const resultEmpty = document.getElementById('result-empty');
+  const downloadButton = document.getElementById('download-button');
+  const resetButton = document.getElementById('reset-button');
   let lastSourceBitmap = null;
   let renderRevision = 0;
+
+  const projectController = new ProjectController({
+    documentModel,
+    history,
+    renderer,
+    root: document,
+    settingsProvider: captureLegacySettings,
+    settingsRestorer: restoreLegacySettings,
+    onProjectLoaded: loaded => {
+      canvas.width = documentModel.width;
+      canvas.height = documentModel.height;
+      renderer.render(documentModel);
+      if (documentTitle) documentTitle.textContent = documentModel.name;
+      if (resultEmpty) resultEmpty.hidden = documentModel.layers.length > 0;
+      if (downloadButton) downloadButton.disabled = documentModel.layers.length === 0;
+      if (resetButton) resetButton.disabled = documentModel.layers.length === 0;
+      const sourceAssetId = documentModel.metadata?.legacySourceAssetId;
+      const sourceBitmap = sourceAssetId ? documentModel.getRuntimeAsset(sourceAssetId) : null;
+      lastSourceBitmap = sourceBitmap;
+      document.dispatchEvent(new CustomEvent('localstudio:project-loaded', {
+        detail: {
+          sourceBitmap,
+          name: documentModel.name,
+          width: documentModel.width,
+          height: documentModel.height,
+          settings: loaded.project.settings ?? {}
+        }
+      }));
+    },
+    onProjectCleared: () => {
+      lastSourceBitmap = null;
+      if (documentTitle) documentTitle.textContent = 'Bez nazwy';
+      if (resultEmpty) resultEmpty.hidden = false;
+      if (downloadButton) downloadButton.disabled = true;
+      if (resetButton) resetButton.disabled = true;
+      document.dispatchEvent(new CustomEvent('localstudio:project-cleared'));
+    }
+  });
+
+  projectController.initialize();
 
   document.addEventListener('localstudio:legacy-render', event => {
     const detail = event.detail ?? {};
@@ -33,6 +77,7 @@ if (canvas) {
   function resetFromLegacy(detail) {
     documentModel.clearRuntimeAssets();
     const assetId = createId('asset');
+    const sourceAssetId = detail.sourceBitmap ? createId('source') : null;
     const baseLayer = createRasterLayer({
       name: detail.name || 'Warstwa bazowa',
       assetId,
@@ -40,6 +85,11 @@ if (canvas) {
       height: detail.height,
       metadata: { role: 'legacy-base', source: 'editor-app', importedAt: new Date().toISOString() }
     });
+    if (sourceAssetId) {
+      const width = detail.sourceBitmap.width || detail.width;
+      const height = detail.sourceBitmap.height || detail.height;
+      documentModel.setRuntimeAsset(sourceAssetId, cloneCanvas(detail.sourceBitmap, width, height));
+    }
     documentModel.restore({
       id: createId('document'),
       name: detail.name || 'Bez nazwy',
@@ -48,12 +98,14 @@ if (canvas) {
       metadata: {
         source: 'localstudio-import',
         sourceName: detail.name || 'image',
+        legacySourceAssetId: sourceAssetId,
         nonDestructiveCoreVersion: 1
       },
       layers: [baseLayer],
       activeLayerId: baseLayer.id,
       selectedLayerIds: [baseLayer.id]
-    }, { preserveRuntimeAssets: false });
+    }, { preserveRuntimeAssets: true });
+    projectController.projectId = documentModel.id;
     history.clear();
     syncBaseFromLegacy(detail);
   }
@@ -86,8 +138,10 @@ if (canvas) {
         }
       });
     } else {
+      if (baseLayer.mask?.assetId) documentModel.deleteRuntimeAsset(baseLayer.mask.assetId);
       baseLayer.mask = null;
     }
+    documentModel.touch();
     documentModel.emit('legacy:sync', { layer: baseLayer });
   }
 
@@ -136,6 +190,7 @@ if (canvas) {
     history,
     renderer,
     layersPanel,
+    projects: projectController,
     addAIResultLayer,
     applyAIResultAsMask,
     render: () => renderer.render(documentModel),
@@ -145,6 +200,16 @@ if (canvas) {
     },
     serialize: () => documentModel.toJSON()
   });
+}
+
+function captureLegacySettings() {
+  const detail = { settings: {} };
+  document.dispatchEvent(new CustomEvent('localstudio:project-settings-request', { detail }));
+  return detail.settings ?? {};
+}
+
+function restoreLegacySettings(settings) {
+  document.dispatchEvent(new CustomEvent('localstudio:project-settings-apply', { detail: { settings } }));
 }
 
 function findBaseLayer(documentModel) {

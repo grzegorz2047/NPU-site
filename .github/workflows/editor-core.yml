@@ -49,6 +49,10 @@ jobs:
             src/editor-document.js \
             src/editor-history.js \
             src/editor-layers-ui.js \
+            src/editor-project-assets.js \
+            src/editor-project-controller.js \
+            src/editor-project-format.js \
+            src/editor-project-store.js \
             src/editor-renderer.js \
             src/editor-runtime.js \
             src/editor-workspace.js; do
