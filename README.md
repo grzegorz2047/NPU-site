@@ -1,34 +1,47 @@
-# LocalFind NPU
+# LocalSafe NPU
 
-Prywatna, działająca w przeglądarce wyszukiwarka semantyczna dokumentów. Użytkownik dodaje PDF, DOCX, TXT, Markdown, CSV, JSON lub HTML, a aplikacja dzieli treść na fragmenty, tworzy lokalny indeks znaczeń i pozwala szukać pytaniem zamiast dokładną frazą.
+Zestaw prywatnych narzędzi działających lokalnie w przeglądarce. Dane nie są wysyłane do backendu ani chmurowego modelu.
 
 **Strona:** https://grzegorz2047.github.io/NPU-site/
 
-## Realny problem
+## Narzędzia
 
-Prywatne dokumenty — umowy, instrukcje, raporty, notatki medyczne czy dokumentacja projektowa — często nie mogą być wysłane do chmurowego chatbota. Klasyczne wyszukiwanie wymaga natomiast pamiętania konkretnych słów. LocalFind rozwiązuje oba problemy: przetwarza pliki lokalnie i zwraca źródłowy fragment zamiast generować odpowiedź bez dowodu.
+### Skaner prywatności — `/`
 
-## Jak używane jest Intel NPU
+Przed wysłaniem wiadomości, logu, promptu lub fragmentu dokumentu wykrywa:
 
-Warstwa inferencji korzysta z ONNX Runtime Web i żąda providera WebNN z `deviceType: "npu"`. W trybie automatycznym aplikacja próbuje kolejno:
+- adresy e-mail i telefony,
+- PESEL,
+- numery rachunków / IBAN,
+- karty płatnicze,
+- adresy IPv4,
+- popularne formaty kluczy API i tokenów.
+
+PESEL, IBAN i karty są sprawdzane sumami kontrolnymi. Każde znalezisko wskazuje linię i kolumnę. Aplikacja tworzy zanonimizowaną kopię, zastępując wyłącznie wykryte wartości.
+
+### Audyt umów — `/contract.html`
+
+Użytkownik dodaje PDF, DOCX lub tekst i zadaje normalne pytania, np. „Jakie są pułapki w umowie?”. Odpowiedź wskazuje ryzyka, ich znaczenie oraz stronę i linie dokumentu. Automatyczna checklista obejmuje czas trwania, wypowiedzenie, opłaty, kary, odpowiedzialność, obowiązki, dane osobowe i spory.
+
+**Działający przykład:** https://grzegorz2047.github.io/NPU-site/example.html
+
+## Intel NPU
+
+Audyt umów korzysta z ONNX Runtime Web i w trybie automatycznym próbuje kolejno:
 
 1. Intel NPU / WebNN,
 2. WebGPU,
 3. WebAssembly na CPU.
 
-Diagnostyka pokazuje dostępne API oraz wybrany backend. Ważne: ONNX Runtime może przenieść nieobsługiwane operatory na WASM; dlatego UI mówi o żądanym backendzie, a nie obiecuje, że 100% grafu wykonało NPU.
+Skaner prywatności jest deterministyczny i działa natychmiast bez pobierania modelu. NPU ma zastosowanie w semantycznym indeksowaniu i odpytywaniu umów.
 
 ## Prywatność
 
 - brak backendu, kont i analityki,
-- pliki są odczytywane przez JavaScript w przeglądarce,
-- tekst i wektory są przechowywane w IndexedDB danej przeglądarki,
-- model i biblioteki są pobierane z CDN/Hugging Face; treść dokumentów nie jest do nich wysyłana,
-- użytkownik może usunąć pojedynczy dokument lub całą bibliotekę.
-
-## Obsługiwane formaty
-
-PDF z warstwą tekstową, DOCX, TXT, MD, CSV, JSON, HTML, LOG, XML, YAML. Skanowane PDF-y wymagające OCR są świadomie odrzucane i znajdują się w roadmapie.
+- tekst skanera pozostaje w pamięci bieżącej karty,
+- dokumenty audytu i wektory są przechowywane w IndexedDB,
+- treść użytkownika nie jest wysyłana do CDN ani Hugging Face,
+- model i biblioteki audytu są pobierane niezależnie od treści dokumentów.
 
 ## Uruchomienie lokalne
 
@@ -36,19 +49,12 @@ PDF z warstwą tekstową, DOCX, TXT, MD, CSV, JSON, HTML, LOG, XML, YAML. Skanow
 python3 -m http.server 4173
 ```
 
-Otwórz `http://localhost:4173`. Nie otwieraj `index.html` jako `file://`, ponieważ moduły ES i service worker wymagają serwera HTTP.
+Otwórz `http://localhost:4173`.
 
 ## Testy
 
 ```bash
 npm test
-npm run check
 ```
 
-## NPU na Windows 11
-
-Najlepsza ścieżka testowa to aktualny Microsoft Edge lub Chrome na komputerze Intel Core Ultra. Jeśli WebNN nie jest domyślnie dostępne, włącz eksperymentalną flagę WebNN i zaktualizuj sterownik NPU. Dokładne zachowanie zależy od wersji przeglądarki, sterownika i obsługi operatorów modelu.
-
-## Roadmapa
-
-Backlog jest prowadzony w GitHub Issues. Najważniejsze dalsze obszary to OCR dla skanów, import folderów, eksport/import indeksu, porównanie jakości modeli i testy na fizycznym Intel AI PC.
+Testy obejmują ranking dokumentów, lokalizacje źródeł, odpowiedzi konwersacyjne oraz wykrywanie, walidację i anonimizację danych wrażliwych.
