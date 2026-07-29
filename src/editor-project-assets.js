@@ -2,7 +2,9 @@ import { referencedAssetIds } from './editor-project-format.js';
 
 export async function collectDocumentAssets(documentModel, historySnapshot = null) {
   const assets = new Map();
-  for (const assetId of referencedAssetIds(documentModel.toJSON(), historySnapshot)) {
+  const ids = new Set(referencedAssetIds(documentModel.toJSON(), historySnapshot));
+  for (const assetId of documentModel.runtimeAssets?.keys?.() ?? []) ids.add(assetId);
+  for (const assetId of ids) {
     const runtimeAsset = documentModel.getRuntimeAsset(assetId);
     if (!runtimeAsset) throw new Error(`Nie można zapisać projektu: brakuje zasobu ${assetId}.`);
     assets.set(assetId, await runtimeAssetToBlob(runtimeAsset));
