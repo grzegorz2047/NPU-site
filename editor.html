@@ -8,11 +8,13 @@
   <title>LocalStudio NPU — edytor obrazu</title>
   <link rel="stylesheet" href="./editor.css" />
   <link rel="stylesheet" href="./editor-inspector.css" data-editor-inspector-styles />
+  <link rel="stylesheet" href="./editor-command-bar.css" data-editor-command-bar-styles />
   <link rel="manifest" href="./manifest.webmanifest" />
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.all.min.js" defer></script>
   <script type="module" src="./src/editor-app.js"></script>
   <script type="module" src="./src/editor-workspace.js"></script>
   <script type="module" src="./src/editor-adjustments-bootstrap.js"></script>
+  <script type="module" src="./src/editor-command-bar.js"></script>
 </head>
 <body>
   <header class="app-header">
@@ -25,27 +27,46 @@
     <div class="header-status"><span id="capability-badge" class="badge" data-tone="neutral">Sprawdzanie…</span><span id="runtime-badge" class="badge" data-tone="neutral">Silnik wyłączony</span></div>
   </header>
 
-  <section class="command-bar" aria-label="Najważniejsze polecenia">
+  <section class="command-bar" aria-label="Najważniejsze polecenia" data-command-bar="organized">
     <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
-    <button id="browse-button" class="command primary" type="button">Otwórz</button>
-    <button id="sample-button" class="command" type="button">Przykład</button>
-    <span class="separator"></span>
     <input id="project-file-input" type="file" accept=".localstudio,application/x-localstudio+json,application/json" hidden />
-    <button id="project-new" class="command" type="button">Nowy</button>
-    <button id="project-save" class="command" type="button">Zapisz</button>
-    <button id="project-import" class="command" type="button">Otwórz projekt</button>
-    <button id="project-export" class="command" type="button">Pobierz projekt</button>
-    <span class="separator"></span>
-    <button id="undo-button" class="command command-icon" type="button" disabled aria-label="Cofnij" title="Brak operacji do cofnięcia">↶</button>
-    <button id="redo-button" class="command command-icon" type="button" disabled aria-label="Ponów" title="Brak operacji do ponowienia">↷</button>
-    <span class="separator"></span>
-    <button id="segment-button" class="command accent" type="button" disabled>Usuń tło</button>
-    <button id="preset-cv" class="command" type="button" disabled>CV</button>
-    <button id="preset-sticker" class="command" type="button" disabled>Sticker</button>
-    <button id="preset-blur" class="command" type="button" disabled>Blur tła</button>
+
+    <div class="command-cluster command-cluster-file" aria-label="Plik i projekt">
+      <button id="browse-button" class="command primary command-open" type="button">Otwórz</button>
+      <details id="file-command-menu" class="command-menu">
+        <summary class="command command-menu-trigger"><span>Plik</span><span class="command-chevron" aria-hidden="true">▾</span></summary>
+        <div class="command-menu-popover" role="menu" aria-label="Plik i projekt">
+          <button id="sample-button" class="command-menu-item" type="button" role="menuitem"><span class="command-menu-icon" aria-hidden="true">▧</span><span><strong>Otwórz przykład</strong><small>Załaduj przykładowy portret</small></span></button>
+          <div class="command-menu-divider" role="separator"></div>
+          <button id="project-new" class="command-menu-item" type="button" role="menuitem"><span class="command-menu-icon" aria-hidden="true">□</span><span><strong>Nowy dokument</strong><small>Zacznij od pustego projektu</small></span></button>
+          <button id="project-import" class="command-menu-item" type="button" role="menuitem"><span class="command-menu-icon" aria-hidden="true">↥</span><span><strong>Otwórz projekt</strong><small>Wczytaj plik .localstudio</small></span></button>
+          <button id="project-save" class="command-menu-item" type="button" role="menuitem"><span class="command-menu-icon" aria-hidden="true">✓</span><span><strong>Zapisz lokalnie</strong><small>Zachowaj bieżący stan w przeglądarce</small></span></button>
+          <button id="project-export" class="command-menu-item" type="button" role="menuitem"><span class="command-menu-icon" aria-hidden="true">⇩</span><span><strong>Pobierz projekt</strong><small>Eksportuj plik do dalszej edycji</small></span></button>
+          <div class="command-menu-divider" role="separator"></div>
+          <button id="reset-button" class="command-menu-item command-menu-danger" type="button" role="menuitem" disabled><span class="command-menu-icon" aria-hidden="true">↺</span><span><strong>Przywróć obraz</strong><small>Usuń wszystkie bieżące zmiany</small></span></button>
+        </div>
+      </details>
+    </div>
+
+    <div class="command-cluster command-history" aria-label="Historia">
+      <button id="undo-button" class="command command-icon" type="button" disabled aria-label="Cofnij" title="Brak operacji do cofnięcia">↶</button>
+      <button id="redo-button" class="command command-icon" type="button" disabled aria-label="Ponów" title="Brak operacji do ponowienia">↷</button>
+    </div>
+
+    <div class="command-cluster command-cluster-ai" aria-label="Szybkie operacje">
+      <button id="segment-button" class="command accent" type="button" disabled>Usuń tło</button>
+      <details id="quick-command-menu" class="command-menu">
+        <summary class="command command-menu-trigger"><span>Szybkie akcje</span><span class="command-chevron" aria-hidden="true">▾</span></summary>
+        <div class="command-menu-popover command-menu-popover-compact" role="menu" aria-label="Szybkie akcje">
+          <button id="preset-cv" class="command-menu-item" type="button" role="menuitem" disabled><span class="command-menu-icon" aria-hidden="true">CV</span><span><strong>Portret do CV</strong><small>Neutralne tło i profesjonalny kadr</small></span></button>
+          <button id="preset-sticker" class="command-menu-item" type="button" role="menuitem" disabled><span class="command-menu-icon" aria-hidden="true">◉</span><span><strong>Sticker PNG</strong><small>Przezroczyste tło i obwódka</small></span></button>
+          <button id="preset-blur" class="command-menu-item" type="button" role="menuitem" disabled><span class="command-menu-icon" aria-hidden="true">◌</span><span><strong>Rozmyj tło</strong><small>Portret z miękkim tłem</small></span></button>
+        </div>
+      </details>
+    </div>
+
     <span class="command-spacer"></span>
-    <button id="reset-button" class="command" type="button" disabled>Reset</button>
-    <button id="download-button" class="command primary" type="button" disabled>Eksportuj</button>
+    <button id="download-button" class="command primary command-export" type="button" disabled>Eksportuj</button>
   </section>
 
   <main class="app-workspace">

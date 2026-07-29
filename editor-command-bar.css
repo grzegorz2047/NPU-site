@@ -1,0 +1,43 @@
+.command-bar[data-command-bar="organized"]{position:relative;z-index:20;gap:10px;padding:6px 10px;overflow:visible}
+.command-cluster{position:relative;display:flex;align-items:center;gap:3px;padding-right:10px;border-right:1px solid #464646}
+.command-cluster-ai{border-right:0;padding-right:0}
+.command-history{gap:0;padding-right:10px}
+.command-history .command:first-child{border-radius:4px 0 0 4px}
+.command-history .command:last-child{margin-left:-1px;border-radius:0 4px 4px 0}
+.command-bar[data-command-bar="organized"] .command{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.command-bar[data-command-bar="organized"] .command:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.command-open{min-width:72px}
+.command-export{min-width:92px}
+.command-menu{position:relative;height:32px}
+.command-menu>summary{height:32px;list-style:none;user-select:none;cursor:pointer}
+.command-menu>summary::-webkit-details-marker{display:none}
+.command-menu[open]>summary{background:#444;border-color:#5b5b5b;color:#fff}
+.command-chevron{color:#999;font-size:9px;transition:transform .14s ease}
+.command-menu[open] .command-chevron{transform:rotate(180deg)}
+.command-menu-popover{position:absolute;top:38px;left:0;z-index:60;width:294px;display:grid;gap:2px;padding:6px;border:1px solid #4a4a4a;border-radius:7px;background:#242424;box-shadow:0 16px 42px rgba(0,0,0,.55)}
+.command-menu-popover-compact{width:280px}
+.command-menu-item{width:100%;min-height:48px;display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;gap:9px;padding:7px 9px;border:0;border-radius:5px;background:transparent;color:#e8e8e8;text-align:left}
+.command-menu-item:hover:not(:disabled),.command-menu-item:focus-visible{background:#343434;outline:0}
+.command-menu-item:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
+.command-menu-item:disabled{cursor:not-allowed;opacity:.42}
+.command-menu-item>span:last-child{min-width:0;display:grid;gap:1px}
+.command-menu-item strong,.command-menu-item small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.command-menu-item strong{font-size:12px;font-weight:650}
+.command-menu-item small{color:#929292;font-size:9px;font-weight:400}
+.command-menu-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:5px;background:#303030;color:#c8c8c8;font-size:12px;font-weight:750}
+.command-menu-divider{height:1px;margin:4px 5px;background:#3c3c3c}
+.command-menu-danger{color:#ffb1b8}
+.command-menu-danger .command-menu-icon{background:#3b272a;color:#ff9ea7}
+.command-bar[data-command-bar="organized"] .command-spacer{min-width:16px}
+@media(max-width:980px){
+  .command-bar[data-command-bar="organized"]{overflow-x:auto;overflow-y:visible;padding-right:8px}
+  .command-menu-popover{position:fixed;top:96px;left:8px;max-width:calc(100vw - 16px)}
+  #quick-command-menu .command-menu-popover{left:auto;right:8px}
+}
+@media(max-width:620px){
+  .command-bar[data-command-bar="organized"]{gap:6px}
+  .command-cluster{padding-right:6px}
+  .command-menu-trigger{padding-left:9px;padding-right:9px}
+  .command-open{min-width:64px}
+  .command-export{min-width:82px}
+}
