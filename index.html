@@ -3,133 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="LocalStudio NPU — kompaktowy lokalny edytor obrazu z funkcjami AI." />
-  <meta name="theme-color" content="#181818" />
-  <title>LocalStudio NPU — edytor obrazu</title>
-  <link rel="stylesheet" href="./editor.css" />
+  <meta name="description" content="LocalLab NPU — prywatne narzędzia AI działające lokalnie w przeglądarce." />
+  <meta name="theme-color" content="#07100d" />
+  <title>LocalLab NPU — lokalne narzędzia AI</title>
+  <link rel="stylesheet" href="./hub.css" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.all.min.js" defer></script>
-  <script type="module" src="./src/editor-app.js"></script>
 </head>
 <body>
-  <header class="app-header">
-    <a class="brand" href="./" aria-label="LocalStudio NPU"><span class="brand-mark">LS</span><strong>LocalStudio</strong><small>NPU</small></a>
-    <nav class="app-menu" aria-label="Pozostałe narzędzia">
-      <a href="./privacy.html">Skaner prywatności</a>
-      <a href="./contract.html">Audyt umowy</a>
-      <a href="./example.html">Przykład audytu</a>
-    </nav>
-    <div class="header-status"><span id="capability-badge" class="badge" data-tone="neutral">Sprawdzanie…</span><span id="runtime-badge" class="badge" data-tone="neutral">Silnik wyłączony</span></div>
+  <header class="hub-header">
+    <a class="brand" href="./"><span class="brand-mark">LL</span><span><strong>LocalLab</strong><small>ON-DEVICE NPU</small></span></a>
+    <a class="repo-link" href="https://github.com/grzegorz2047/NPU-site">GitHub ↗</a>
   </header>
 
-  <section class="command-bar" aria-label="Najważniejsze polecenia">
-    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
-    <button id="browse-button" class="command primary" type="button">Otwórz</button>
-    <button id="sample-button" class="command" type="button">Przykład</button>
-    <span class="separator"></span>
-    <button id="segment-button" class="command accent" type="button" disabled>Usuń tło</button>
-    <button id="preset-cv" class="command" type="button" disabled>CV</button>
-    <button id="preset-sticker" class="command" type="button" disabled>Sticker</button>
-    <button id="preset-blur" class="command" type="button" disabled>Blur tła</button>
-    <span class="command-spacer"></span>
-    <button id="reset-button" class="command" type="button" disabled>Reset</button>
-    <button id="download-button" class="command primary" type="button" disabled>Eksportuj</button>
-  </section>
-
-  <main class="app-workspace">
-    <aside class="tool-rail" aria-label="Narzędzia">
-      <button class="tool-button recipe-button" data-recipe="cv" title="Portret do CV"><span>CV</span><small>Portret</small></button>
-      <button class="tool-button recipe-button" data-recipe="sticker" title="Sticker PNG"><span>◉</span><small>Sticker</small></button>
-      <button class="tool-button recipe-button" data-recipe="privacy" title="Ukrywanie danych"><span>▧</span><small>Redakcja</small></button>
-      <span class="rail-separator"></span>
-      <button id="rotate-left" class="tool-button" type="button" title="Obróć w lewo"><span>↺</span><small>Lewo</small></button>
-      <button id="rotate-right" class="tool-button" type="button" title="Obróć w prawo"><span>↻</span><small>Prawo</small></button>
-      <button id="flip-x" class="tool-button" type="button" title="Odbij poziomo"><span>↔</span><small>Poziom</small></button>
-      <button id="flip-y" class="tool-button" type="button" title="Odbij pionowo"><span>↕</span><small>Pion</small></button>
-      <span class="rail-spacer"></span>
-      <button id="fit-view" class="tool-button" type="button" title="Dopasuj widok"><span>□</span><small>Dopasuj</small></button>
-    </aside>
-
-    <section class="canvas-area" aria-label="Płótno robocze">
-      <div class="canvas-toolbar">
-        <div class="document-meta"><strong id="document-title">Bez nazwy</strong><span id="file-meta">Nie wybrano pliku.</span></div>
-        <div class="canvas-actions"><span id="mask-badge" class="badge" data-tone="neutral">Maska AI: nieaktywna</span></div>
-      </div>
-
-      <div id="dropzone" class="stage checker">
-        <div class="original-buffer" aria-hidden="true"><canvas id="original-canvas" width="640" height="480"></canvas><p id="original-empty">Brak obrazu</p></div>
-        <div class="canvas-card result-card" onclick="event.stopPropagation()">
-          <div class="canvas-stack">
-            <canvas id="result-canvas" width="640" height="480"></canvas>
-            <canvas id="overlay-canvas" width="640" height="480"></canvas>
-            <div id="result-empty" class="empty-stage">
-              <div class="empty-icon">＋</div>
-              <strong>Przeciągnij obraz tutaj</strong>
-              <span>albo użyj przycisku „Otwórz” · JPG, PNG, WebP</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <footer class="status-bar">
-        <span id="engine-status">Silnik nieuruchomiony.</span>
-        <span id="download-status">Załaduj obraz, aby rozpocząć.</span>
-      </footer>
+  <main class="hub-main">
+    <section class="intro">
+      <span class="eyebrow">Bez backendu · bez konta · dane pozostają lokalnie</span>
+      <h1>Wybierz narzędzie.</h1>
+      <p>Obraz, tekst i dokumenty są przetwarzane w przeglądarce. NPU, WebGPU lub CPU uruchamiają modele lokalnie, a interfejs pokazuje rzeczywiście użyty backend.</p>
     </section>
 
-    <aside class="inspector" aria-label="Właściwości obrazu">
-      <div class="inspector-title"><strong>Właściwości</strong><span>Local edit</span></div>
+    <section class="tool-grid" aria-label="Dostępne narzędzia">
+      <a class="tool-card featured" href="./editor.html">
+        <span class="tool-icon">PS</span>
+        <span class="tool-copy"><h2>Edytor obrazu</h2><p>Kompaktowy workspace do korekty, usuwania i podmiany tła, presetów, redakcji oraz eksportu.</p><span class="tool-meta"><span>NPU / WebNN</span><span>GPU</span><span>CPU</span></span></span>
+        <span class="tool-arrow">→</span>
+      </a>
 
-      <details class="inspector-section" open>
-        <summary>AI i dokument</summary>
-        <div class="section-body">
-          <label>Akcelerator<select id="backend-select"><option value="auto">Auto: NPU → GPU → CPU</option><option value="npu">Tylko NPU / WebNN</option><option value="gpu">GPU / Transformers.js</option><option value="cpu">CPU / WASM</option></select></label>
-          <button id="init-button" class="panel-button" type="button">Uruchom silnik</button>
-          <div id="model-progress" class="progress-wrap" hidden><div class="progress-track"><span id="progress-bar"></span></div><span id="progress-text">Ładowanie modelu…</span></div>
-          <label class="file-field">Obraz tła<input id="background-input" type="file" accept="image/jpeg,image/png,image/webp" /></label>
-        </div>
-      </details>
+      <a class="tool-card" href="./privacy.html">
+        <span class="tool-icon">PII</span>
+        <span class="tool-copy"><h2>Skaner prywatności</h2><p>Wykrywa osoby, adresy, dane medyczne, finanse, tokeny i własne reguły przed wysłaniem tekstu.</p><span class="tool-meta"><span>Jawne reguły</span><span>Modele lokalne</span></span></span>
+        <span class="tool-arrow">→</span>
+      </a>
 
-      <details class="inspector-section" open>
-        <summary>Korekta</summary>
-        <div class="section-body slider-grid">
-          <label><span>Jasność <output id="brightness-output">100%</output></span><input id="brightness" type="range" min="40" max="180" value="100" /></label>
-          <label><span>Kontrast <output id="contrast-output">100%</output></span><input id="contrast" type="range" min="40" max="180" value="100" /></label>
-          <label><span>Nasycenie <output id="saturation-output">100%</output></span><input id="saturation" type="range" min="0" max="200" value="100" /></label>
-          <label><span>Sepia <output id="sepia-output">0%</output></span><input id="sepia" type="range" min="0" max="100" value="0" /></label>
-          <label><span>Szarość <output id="grayscale-output">0%</output></span><input id="grayscale" type="range" min="0" max="100" value="0" /></label>
-          <label><span>Rozmycie <output id="blur-output">0 px</output></span><input id="blur" type="range" min="0" max="12" value="0" /></label>
-        </div>
-      </details>
+      <a class="tool-card" href="./contract.html">
+        <span class="tool-icon">DOC</span>
+        <span class="tool-copy"><h2>Audyt umowy</h2><p>Przeszukuje lokalnie PDF, DOCX i tekst, wskazując ryzyka wraz z konkretnymi źródłami.</p><span class="tool-meta"><span>PDF / DOCX</span><span>Źródła i linie</span></span></span>
+        <span class="tool-arrow">→</span>
+      </a>
 
-      <details class="inspector-section">
-        <summary>Tło i kompozycja</summary>
-        <div class="section-body">
-          <label><span>Maksymalny bok <output id="max-edge-output">1400 px</output></span><input id="max-edge" type="range" min="600" max="2000" step="50" value="1400" /></label>
-          <label>Tryb tła<select id="background-mode"><option value="original">Oryginalne</option><option value="transparent">Przezroczyste</option><option value="solid">Jednolity kolor</option><option value="gradient">Gradient</option><option value="blur">Rozmycie tła</option><option value="image">Obraz użytkownika</option></select></label>
-          <div class="two-columns"><label>Kolor A<input id="bg-color-a" type="color" value="#f6f7fb" /></label><label>Kolor B<input id="bg-color-b" type="color" value="#dbe8ff" /></label></div>
-          <label><span>Rozmycie tła <output id="bg-blur-output">18 px</output></span><input id="bg-blur" type="range" min="0" max="40" value="18" /></label>
-          <div class="two-columns"><label>Obwódka<input id="outline-width" type="number" min="0" max="24" value="0" /></label><label>Cień<input id="shadow-strength" type="number" min="0" max="40" value="0" /></label></div>
-        </div>
-      </details>
-
-      <details class="inspector-section">
-        <summary>Redakcja danych</summary>
-        <div class="section-body">
-          <label>Tryb<select id="redaction-mode"><option value="off">Wyłączone</option><option value="blur">Rozmycie</option><option value="pixelate">Pikselizacja</option><option value="black">Czarny pasek</option></select></label>
-          <label><span>Siła <output id="redaction-intensity-output">16</output></span><input id="redaction-intensity" type="range" min="4" max="40" value="16" /></label>
-          <div class="two-buttons"><button id="undo-redaction" class="panel-button" type="button">Cofnij</button><button id="clear-redactions" class="panel-button" type="button">Wyczyść</button></div>
-          <p class="hint">Wybierz tryb i przeciągnij prostokąt bezpośrednio po płótnie.</p>
-        </div>
-      </details>
-
-      <details class="inspector-section" open>
-        <summary>Eksport</summary>
-        <div class="section-body">
-          <div class="two-columns"><label>Format<select id="export-format"><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></label><label><span>Jakość <output id="quality-output">92%</output></span><input id="export-quality" type="range" min="50" max="100" value="92" /></label></div>
-        </div>
-      </details>
-    </aside>
+      <a class="tool-card" href="./example.html">
+        <span class="tool-icon">✓</span>
+        <span class="tool-copy"><h2>Przykład audytu</h2><p>Weryfikowalny scenariusz pokazujący, jak narzędzie znajduje osiem ryzyk w przykładowej umowie.</p><span class="tool-meta"><span>Gotowe dane</span><span>Test źródeł</span></span></span>
+        <span class="tool-arrow">→</span>
+      </a>
+    </section>
   </main>
+
+  <footer class="hub-footer"><span>LocalLab NPU</span><span>Przetwarzanie on-device</span></footer>
 </body>
 </html>
