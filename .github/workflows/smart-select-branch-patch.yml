@@ -1,0 +1,96 @@
+name: Smart Select branch patch
+
+on:
+  push:
+    branches: [agent/npu-smart-select-57]
+    paths:
+      - '.github/workflows/smart-select-branch-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/npu-smart-select-57
+          fetch-depth: 0
+      - name: Patch runtime and bootstrap
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          runtime = Path('src/editor-runtime.js')
+          text = runtime.read_text(encoding='utf-8')
+          marker = "  if (model.task === 'image-segmentation' || model.task === 'object-detection') {"
+          if marker not in text:
+              needle = "  if (model.task === 'depth-estimation') {"
+              block = """  if (model.task === 'image-segmentation' || model.task === 'object-detection') {
+            const pipelineOptions = backend === 'webgpu'
+              ? { device: 'webgpu', dtype: model.task === 'image-segmentation' ? 'fp16' : 'fp32', progress_callback: progressCallback }
+              : { dtype: 'q8', progress_callback: progressCallback };
+            const pipeline = await benchmark.measure('download', () => transformers.pipeline(model.task, model.repository, pipelineOptions));
+            return {
+              ioBinding: false,
+              preprocess: (canvas, { preview }) => preview ? createPreviewCanvas(canvas, model.task === 'image-segmentation' ? 768 : 960) : canvas,
+              run: canvas => pipeline(canvas, model.task === 'object-detection' ? { threshold: 0.2, percentage: false } : {}),
+              postprocess: output => output,
+              dispose: async () => { if (pipeline.dispose) await pipeline.dispose(); }
+            };
+          }
+
+          """
+              if needle not in text:
+                  raise SystemExit('Nie znaleziono punktu rozszerzenia editor-runtime.js')
+              text = text.replace(needle, block + needle)
+              runtime.write_text(text, encoding='utf-8')
+
+          bootstrap = Path('src/editor-adjustments-bootstrap.js')
+          text = bootstrap.read_text(encoding='utf-8')
+          import_line = "  import('./editor-smart-select-bootstrap.js').catch(() => {});"
+          if import_line not in text:
+              anchor = "  import('./editor-retouch-bootstrap.js').catch(() => {});"
+              if anchor not in text:
+                  raise SystemExit('Nie znaleziono bootstrapu retuszu')
+              text = text.replace(anchor, anchor + '\n' + import_line)
+              bootstrap.write_text(text, encoding='utf-8')
+
+          sw = Path('sw.js')
+          text = sw.read_text(encoding='utf-8')
+          match = re.search(r"localsafe-shell-v(\d+)", text)
+          if match:
+              text = text[:match.start()] + f"localsafe-shell-v{int(match.group(1)) + 1}" + text[match.end():]
+          css = "'./editor-smart-select.css'"
+          if css not in text:
+              text = text.replace("'./hub.css'", css + ",'./hub.css'")
+          smart_files = [
+              './src/editor-smart-mask.js',
+              './src/editor-smart-objects.js',
+              './src/editor-smart-select-engine.js',
+              './src/editor-smart-mask-renderer.js',
+              './src/editor-smart-select-ui.js',
+              './src/editor-smart-select-bootstrap.js'
+          ]
+          anchor = "'./src/editor-core.js'"
+          for item in reversed(smart_files):
+              quoted = repr(item)
+              if quoted not in text:
+                  text = text.replace(anchor, quoted + ',' + anchor)
+          sw.write_text(text, encoding='utf-8')
+          PY
+      - name: Validate patch
+        run: |
+          node --check src/editor-runtime.js
+          node --check src/editor-adjustments-bootstrap.js
+          node --check src/editor-smart-select-bootstrap.js
+      - name: Commit patch
+        run: |
+          rm .github/workflows/smart-select-branch-patch.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/editor-runtime.js src/editor-adjustments-bootstrap.js sw.js .github/workflows/smart-select-branch-patch.yml
+          git commit -m "Podepnij Smart Select do runtime i workspace"
+          git push origin HEAD:agent/npu-smart-select-57
