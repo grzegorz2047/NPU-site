@@ -12,6 +12,9 @@ import {
   differenceRgba,
   estimateRestorationMemory
 } from '../src/editor-restoration-core.js';
+import { createAddRestorationLayerCommand } from '../src/editor-restoration-commands.js';
+import { createEditorDocument, createRasterLayer } from '../src/editor-document.js';
+import { CommandHistory } from '../src/editor-history.js';
 
 const solid = (width, height, rgba) => {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -106,4 +109,36 @@ test('abort signal stops expensive local processing', () => {
   const controller = new AbortController();
   controller.abort('stop');
   assert.throws(() => applyLocalRestoration(solid(8, 8, [1, 2, 3, 255]), 8, 8, { profileId: 'denoise-local' }, controller.signal), error => error.name === 'AbortError');
+});
+
+test('result layer, document resize and history are atomic', () => {
+  const base = createRasterLayer({ id: 'base', name: 'Bazowa', assetId: 'source', width: 2, height: 2 });
+  const documentModel = createEditorDocument({ width: 2, height: 2, layers: [base], activeLayerId: base.id, selectedLayerIds: [base.id] });
+  documentModel.setRuntimeAsset('source', { width: 2, height: 2 });
+  const history = new CommandHistory();
+  const result = {
+    canvas: { width: 8, height: 8 },
+    width: 8,
+    height: 8,
+    task: 'super-resolution',
+    profileId: 'sr-4x-quality',
+    backend: 'webgpu',
+    modelId: 'swin2sr-realworld-x4',
+    tileCount: 2,
+    memory: { peakBytes: 1024 },
+    benchmark: { totalMs: 12 }
+  };
+  history.execute(createAddRestorationLayerCommand(documentModel, result, { assetId: 'restored' }), documentModel);
+  assert.equal(documentModel.width, 8);
+  assert.equal(documentModel.height, 8);
+  assert.equal(documentModel.layers.length, 2);
+  assert.equal(documentModel.activeLayer.metadata.kind, 'restoration');
+  assert.equal(documentModel.getRuntimeAsset('restored'), result.canvas);
+  assert.equal(history.undo(documentModel), true);
+  assert.equal(documentModel.width, 2);
+  assert.equal(documentModel.layers.length, 1);
+  assert.equal(history.redo(documentModel), true);
+  assert.equal(documentModel.width, 8);
+  assert.equal(documentModel.layers.length, 2);
+  assert.equal(documentModel.activeLayer.metadata.modelId, 'swin2sr-realworld-x4');
 });
