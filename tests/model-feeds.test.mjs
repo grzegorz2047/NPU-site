@@ -1,0 +1,6 @@
+import test from'node:test';import assert from'node:assert/strict';import{prepareModelInputSpecs}from'../src/model-feeds.js';
+const encoded={input_ids:{data:BigInt64Array.from([101n,102n,0n,103n]),dims:[2,2]},attention_mask:{data:BigInt64Array.from([1n,1n,1n,1n]),dims:[2,2]}};
+test('creates zero token_type_ids with input_ids shape',()=>{const specs=prepareModelInputSpecs(encoded,['input_ids','attention_mask','token_type_ids']);assert.deepEqual(specs.token_type_ids.dims,[2,2]);assert.deepEqual([...specs.token_type_ids.data],[0n,0n,0n,0n])});
+test('preserves tokenizer-provided inputs',()=>{const tokenTypes={data:BigInt64Array.from([0n,0n,1n,1n]),dims:[2,2]};const specs=prepareModelInputSpecs({...encoded,token_type_ids:tokenTypes},['input_ids','token_type_ids']);assert.deepEqual([...specs.token_type_ids.data],[0n,0n,1n,1n])});
+test('creates attention mask when model requires it',()=>{const specs=prepareModelInputSpecs({input_ids:encoded.input_ids},['input_ids','attention_mask']);assert.deepEqual([...specs.attention_mask.data],[1n,1n,1n,1n]);assert.deepEqual(specs.attention_mask.dims,[2,2])});
+test('fails clearly for unknown required input',()=>{assert.throws(()=>prepareModelInputSpecs(encoded,['input_ids','position_ids']),/position_ids/)});
