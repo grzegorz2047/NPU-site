@@ -1,0 +1,7 @@
+import{normalizeWhitespace}from'./search-core.js';
+
+export function splitPages(text){const source=String(text??'').replace(/\r\n?/g,'\n');const marker=/^\[Page\s+(\d+)\]\s*/gim;const matches=[...source.matchAll(marker)];if(!matches.length)return[{page:1,text:source}];return matches.map((match,index)=>({page:Number(match[1]),text:source.slice(match.index+match[0].length,matches[index+1]?.index??source.length)}))}
+
+export function buildLocatedChunks(text,options={}){const maxChars=options.maxChars??900;const chunks=[];for(const page of splitPages(text)){const rawLines=page.text.split('\n');let current=[],length=0,startLine=1;const emit=()=>{const value=normalizeWhitespace(current.join('\n'));if(value)chunks.push({text:value,page:page.page,lineStart:startLine,lineEnd:startLine+current.length-1});current=[];length=0};rawLines.forEach((raw,index)=>{const line=raw.trim();if(!line)return;if(!current.length)startLine=index+1;if(current.length&&length+line.length+1>maxChars)emit();if(!current.length)startLine=index+1;current.push(line);length+=line.length+1});emit()}return chunks.map((chunk,index)=>({...chunk,chunkIndex:index}))}
+
+export function sourceLabel(chunk,lang='pl'){if(Number.isFinite(chunk.page)&&Number.isFinite(chunk.lineStart)){const lines=chunk.lineStart===chunk.lineEnd?String(chunk.lineStart):`${chunk.lineStart}–${chunk.lineEnd}`;return lang==='pl'?`strona ${chunk.page}, linia ${lines}`:`page ${chunk.page}, line ${lines}`}return lang==='pl'?`fragment ${(chunk.chunkIndex??0)+1}`:`fragment ${(chunk.chunkIndex??0)+1}`}
