@@ -27,6 +27,11 @@ Pełnosprawny lokalny edytor obrazu w kompaktowym układzie typu desktopowego. U
 - crop z proporcjami i prostowaniem, resize dokumentu lub aktywnej warstwy,
 - swobodną transformację warstwy: przesunięcie, skala, obrót, skew i perspektywa,
 - linijki, prowadnice, siatkę i opcjonalne przyciąganie,
+- zaznaczenia prostokątne, eliptyczne, lasso oraz magic wand z operacjami add/subtract/intersect,
+- feather, rozszerzanie, zmniejszanie i odwracanie zaznaczeń,
+- pędzel z twardością, kryciem i spacingiem oraz niedestrukcyjną gumkę maskującą,
+- wiadro spójnego obszaru, gradient liniowy/radialny i pipetę,
+- edytowalne warstwy tekstowe oraz skalowalne prostokąty, elipsy, linie i strzałki,
 - eksport do PNG, JPEG i WebP.
 
 #### Rdzeń dokumentu
@@ -35,12 +40,15 @@ Model edytora jest niezależny od DOM i rozdzielony na moduły:
 
 - `src/editor-document.js` — dokument, warstwy raster/tekst/kształt/grupa, zaznaczenie i serializacja,
 - `src/editor-history.js` — odwracalne komendy, undo/redo, limit i kompaktowanie historii,
-- `src/editor-renderer.js` — kompozycja canvasa, maski, maski przycinające, blend modes i perspektywa,
+- `src/editor-renderer.js` — kompozycja canvasa, maski, maski przycinające i blend modes,
 - `src/editor-layers-ui.js` — panel warstw i skróty klawiaturowe,
 - `src/editor-canvas-geometry.js` — viewport, macierze, perspektywa i snapping,
 - `src/editor-canvas-commands.js` — crop, resize, prowadnice i transformacje z undo/redo,
-- `src/editor-canvas-ui.js` — kontrolki nawigacji i transformacji montowane bez przebudowy legacy HTML,
 - `src/editor-canvas-controller.js` — zoom/pan, interakcje płótna, linijki i podglądy zatwierdzania,
+- `src/editor-selection.js` — geometria, maski, magic wand i operacje na zaznaczeniach,
+- `src/editor-selection-render.js` — ograniczanie istniejących korekt do zaznaczonego obszaru,
+- `src/editor-paint.js` — serializowalne pociągnięcia, wypełnienia, gradienty i gumka maskująca,
+- `src/editor-tools-controller.js` — aktywne narzędzie, skróty, podgląd i integracja z undo/redo,
 - `src/editor-workspace.js` — integracja nowego modelu z istniejącym pipeline'em AI i eksportem,
 - `src/editor-project-format.js` — wersjonowany format `.localstudio`, walidacja i migracje,
 - `src/editor-project-store.js` — IndexedDB, trwałe bloby, lista projektów i journal odzyskiwania,
@@ -56,6 +64,14 @@ Obecny import tworzy bazową warstwę rastrową. Wynik dotychczasowego pipeline'
 - crop i transformacja działają jako podgląd i trafiają do dokumentu dopiero po zatwierdzeniu,
 - transformacje aktywnej warstwy zachowują maski i są w pełni odwracalne,
 - dwuklik na linijce dodaje prowadnicę, prawy przycisk usuwa najbliższą; grid, guides i snapping można wyłączyć.
+
+#### Narzędzia manualne
+
+- `M` aktywuje zaznaczenie, `W` magic wand, `B` pędzel, `E` gumkę, `F` wiadro, `G` gradient, `I` pipetę, `T` tekst, a `U` kształt,
+- zaznaczenie jest serializowane w projekcie i ogranicza pędzel, gumkę, wiadro oraz gradient,
+- każda kreska, operacja zaznaczenia, tekst i kształt tworzą pojedynczy wpis undo/redo,
+- gumka dopisuje pociągnięcia do maski warstwy zamiast usuwać źródłowe piksele,
+- warstwy malowania są cache’owane przyrostowo, więc kolejne pociągnięcia nie odtwarzają całej historii od zera.
 
 #### Projekty lokalne
 
@@ -115,4 +131,4 @@ Otwórz `http://localhost:4173`.
 npm test
 ```
 
-Testy obejmują rdzeń kompozycji obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
+Testy obejmują rdzeń kompozycji obrazu, viewport i macierze transformacji, crop/resize, perspektywę, snapping, geometrię zaznaczeń, magic wand, historię pociągnięć, gumkę maskującą, cache warstw malowania, model dokumentu i warstw, serializowane undo/redo, round-trip i migracje `.localstudio`, autosave i odzyskiwanie projektów, czyszczenie blobów, maski i blend modes, preprocessing MODNet, wybór backendu, ranking dokumentów, lokalizacje źródeł oraz wykrywanie i anonimizację danych wrażliwych.
