@@ -75,13 +75,38 @@ export function cosineSimilarity(a, b) {
   return score;
 }
 
+function keywordTokens(value) {
+  return normalizeWhitespace(value)
+    .toLocaleLowerCase()
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replaceAll('ł', 'l')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((term) => term.length > 1);
+}
+
+function commonPrefixLength(left, right) {
+  const limit = Math.min(left.length, right.length);
+  let index = 0;
+  while (index < limit && left[index] === right[index]) index += 1;
+  return index;
+}
+
+function tokensShareRoot(queryToken, textToken) {
+  if (queryToken === textToken) return true;
+  const shorterLength = Math.min(queryToken.length, textToken.length);
+  if (shorterLength < 4) return false;
+  const requiredPrefix = Math.max(4, Math.ceil(shorterLength * 0.7));
+  return commonPrefixLength(queryToken, textToken) >= requiredPrefix;
+}
+
 export function keywordScore(query, text) {
-  const terms = normalizeWhitespace(query).toLocaleLowerCase().split(/[^\p{L}\p{N}]+/u).filter((term) => term.length > 1);
+  const terms = keywordTokens(query);
   if (!terms.length) return 0;
-  const haystack = normalizeWhitespace(text).toLocaleLowerCase();
+  const textTokens = keywordTokens(text);
   let matches = 0;
   for (const term of new Set(terms)) {
-    const occurrences = haystack.split(term).length - 1;
+    const occurrences = textTokens.filter((token) => tokensShareRoot(term, token)).length;
     if (occurrences > 0) matches += 1 + Math.log1p(occurrences);
   }
   return Math.min(1, matches / (terms.length * 1.6));
