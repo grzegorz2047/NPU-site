@@ -184,7 +184,7 @@ async function createTransformersSession({ model, backend, signal, benchmark, on
     const pipeline = await benchmark.measure('download', () => transformers.pipeline(model.task, model.repository, pipelineOptions));
     return {
       ioBinding: false,
-      preprocess: canvas => canvas,
+      preprocess: (canvas, { preview }) => preview ? createPreviewCanvas(canvas, 512) : canvas,
       run: canvas => pipeline(canvas),
       postprocess: output => output?.depth ?? output,
       dispose: async () => { if (pipeline.dispose) await pipeline.dispose(); }
@@ -202,6 +202,17 @@ function canvasToModnetTensor(canvas) {
   context.drawImage(canvas, 0, 0, MODEL_SIZE, MODEL_SIZE);
   const data = context.getImageData(0, 0, MODEL_SIZE, MODEL_SIZE).data;
   return new ort.Tensor('float32', rgbaToNchw(data, MODEL_SIZE, MODEL_SIZE), [1, 3, MODEL_SIZE, MODEL_SIZE]);
+}
+
+function createPreviewCanvas(source, maxSide) {
+  if (!source?.width || !source?.height || typeof document === 'undefined') return source;
+  const scale = Math.min(1, maxSide / Math.max(source.width, source.height));
+  if (scale >= 1) return source;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
 
 function configureWasm(env) {
@@ -242,7 +253,7 @@ function normalizePreference(preference) {
 }
 
 function runtimeLabel(backend, ioBinding) {
-  if (backend === 'npu') return ioBinding ? 'WebNN direct · IO binding' : 'WebNN direct';
+  if (backend === 'npu') return ioBinding ? 'WebNN direct · IO API' : 'WebNN direct';
   return 'Transformers.js';
 }
 
