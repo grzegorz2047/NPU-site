@@ -27,23 +27,29 @@ export function ensureAdjustmentPanel(root = document) {
         <button id="adjustment-mask-selection" class="panel-button" type="button" disabled>Maska z zaznaczenia</button>
         <button id="adjustment-mask-full" class="panel-button" type="button" disabled>Pełny obraz</button>
       </div>
-      <div class="adjustment-preview-actions">
-        <button id="adjustment-before" class="panel-button" type="button" disabled>Przytrzymaj: przed</button>
-        <label class="adjustment-clipping-label"><input id="adjustment-clipping" type="checkbox" /> Ostrzeżenia clippingu</label>
-      </div>
-      <canvas id="adjustment-histogram" class="adjustment-histogram" width="256" height="92" aria-label="Histogram RGB i luminancji"></canvas>
-      <p id="adjustment-clipping-status" class="hint">Cienie 0.0% · światła 0.0%</p>
-      <div class="adjustment-presets">
-        <label>Preset<select id="adjustment-preset"><option value="">Wybierz preset…</option></select></label>
-        <div class="adjustment-preset-buttons">
-          <button id="adjustment-preset-apply" class="panel-button" type="button" disabled>Zastosuj</button>
-          <button id="adjustment-preset-delete" class="panel-button" type="button" disabled>Usuń</button>
+      <button id="adjustment-before" class="panel-button adjustment-before" type="button" disabled>Przytrzymaj, aby zobaczyć „przed”</button>
+      <details class="adjustment-subsection" open>
+        <summary>Histogram i clipping</summary>
+        <div class="adjustment-subsection-body">
+          <label class="adjustment-clipping-label"><input id="adjustment-clipping" type="checkbox" /> Pokaż ostrzeżenia clippingu</label>
+          <canvas id="adjustment-histogram" class="adjustment-histogram" width="256" height="92" aria-label="Histogram RGB i luminancji"></canvas>
+          <p id="adjustment-clipping-status" class="hint">Cienie 0.0% · światła 0.0%</p>
         </div>
-        <div class="adjustment-preset-save">
-          <input id="adjustment-preset-name" type="text" maxlength="60" placeholder="Nazwa własnego presetu" aria-label="Nazwa własnego presetu" />
-          <button id="adjustment-preset-save" class="panel-button" type="button" disabled>Zapisz</button>
+      </details>
+      <details class="adjustment-subsection">
+        <summary>Presety</summary>
+        <div class="adjustment-subsection-body adjustment-presets">
+          <label>Preset<select id="adjustment-preset"><option value="">Wybierz preset…</option></select></label>
+          <div class="adjustment-preset-buttons">
+            <button id="adjustment-preset-apply" class="panel-button" type="button" disabled>Zastosuj</button>
+            <button id="adjustment-preset-delete" class="panel-button" type="button" disabled>Usuń</button>
+          </div>
+          <div class="adjustment-preset-save">
+            <input id="adjustment-preset-name" type="text" maxlength="60" placeholder="Nazwa własnego presetu" aria-label="Nazwa własnego presetu" />
+            <button id="adjustment-preset-save" class="panel-button" type="button" disabled>Zapisz</button>
+          </div>
         </div>
-      </div>
+      </details>
     </div>`;
   if (legacy) inspector.insertBefore(panel, legacy);
   else inspector.append(panel);
