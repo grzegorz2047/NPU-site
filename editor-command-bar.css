@@ -1,14 +1,15 @@
-.command-bar[data-command-bar="organized"]{gap:10px;padding:6px 10px;overflow:visible}
+.command-bar[data-command-bar="organized"]{position:relative;z-index:20;gap:10px;padding:6px 10px;overflow:visible}
 .command-cluster{position:relative;display:flex;align-items:center;gap:3px;padding-right:10px;border-right:1px solid #464646}
 .command-cluster-ai{border-right:0;padding-right:0}
 .command-history{gap:0;padding-right:10px}
 .command-history .command:first-child{border-radius:4px 0 0 4px}
 .command-history .command:last-child{margin-left:-1px;border-radius:0 4px 4px 0}
 .command-bar[data-command-bar="organized"] .command{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.command-bar[data-command-bar="organized"] .command:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .command-open{min-width:72px}
 .command-export{min-width:92px}
 .command-menu{position:relative;height:32px}
-.command-menu>summary{height:32px;list-style:none;user-select:none}
+.command-menu>summary{height:32px;list-style:none;user-select:none;cursor:pointer}
 .command-menu>summary::-webkit-details-marker{display:none}
 .command-menu[open]>summary{background:#444;border-color:#5b5b5b;color:#fff}
 .command-chevron{color:#999;font-size:9px;transition:transform .14s ease}
