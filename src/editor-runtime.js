@@ -5,6 +5,7 @@ import { ModelRegistry, modelCacheKey } from './editor-model-registry.js';
 const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm';
 const MODNET_MODEL_ID = 'modnet-portrait-matting';
 const DEPTH_MODEL_ID = 'depth-anything-v2-small';
+const RESTORATION_MODEL_IDS = Object.freeze(['swin2sr-lightweight-x2', 'swin2sr-realworld-x4', 'swin2sr-compressed-x4']);
 
 export class SegmentationEngine {
   constructor({ status = () => {}, progress = () => {}, runtime = null } = {}) {
@@ -199,6 +200,24 @@ async function createTransformersSession({ model, backend, signal, benchmark, on
     };
   }
 
+  if (model.task === 'image-to-image') {
+    const pipelineOptions = backend === 'webgpu'
+      ? { device: 'webgpu', dtype: 'fp16', progress_callback: progressCallback }
+      : { dtype: 'q8', progress_callback: progressCallback };
+    status(`Ładowanie ${model.name}…`);
+    const pipeline = await benchmark.measure('download', () => transformers.pipeline('image-to-image', model.repository, pipelineOptions));
+    return {
+      ioBinding: false,
+      preprocess: async canvas => {
+        throwIfAborted(signal);
+        return transformers.RawImage?.read ? transformers.RawImage.read(canvas) : canvas;
+      },
+      run: image => pipeline(image),
+      postprocess: output => Array.isArray(output) ? output[0] : output,
+      dispose: async () => { if (pipeline.dispose) await pipeline.dispose(); }
+    };
+  }
+
   throw new Error(`Brak adaptera Transformers.js dla zadania ${model.task}.`);
 }
 
@@ -274,6 +293,6 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw new DOMException(String(signal.reason || 'Operacja anulowana.'), 'AbortError');
 }
 
-export { MODNET_MODEL_ID, DEPTH_MODEL_ID };
+export { MODNET_MODEL_ID, DEPTH_MODEL_ID, RESTORATION_MODEL_IDS };
 
 if (typeof document !== 'undefined') import('./editor-runtime-ui.js').catch(() => {});
