@@ -40,9 +40,9 @@ function response(bytes) {
   return new Response(Uint8Array.from(bytes), { status: 200, headers: { 'content-length': String(bytes.length) } });
 }
 
-test('registers two production image models with complete contracts', () => {
+test('registers production image models with complete contracts', () => {
   const registry = new ModelRegistry();
-  assert.equal(registry.list().length, 2);
+  assert.equal(registry.list().length, 5);
   for (const model of registry.list()) {
     assert.ok(model.id);
     assert.ok(model.version);
@@ -54,6 +54,9 @@ test('registers two production image models with complete contracts', () => {
   }
   assert.equal(BUILTIN_IMAGE_MODELS[0].task, 'background-removal');
   assert.equal(BUILTIN_IMAGE_MODELS[1].task, 'depth-estimation');
+  assert.equal(registry.list({ task: 'image-to-image' }).length, 3);
+  assert.equal(registry.get('swin2sr-realworld-x4').metadata.outputScale, 4);
+  assert.equal(registry.get('swin2sr-compressed-x4').metadata.restorationTask, 'jpeg-restoration');
 });
 
 test('resolves auto backends in NPU, WebGPU, WASM order and keeps NPU strict', () => {
@@ -61,15 +64,20 @@ test('resolves auto backends in NPU, WebGPU, WASM order and keeps NPU strict', (
   const caps = { npu: true, webgpu: true, wasm: true };
   assert.deepEqual(registry.resolveCandidates('modnet-portrait-matting', 'auto', caps), ['npu', 'webgpu', 'wasm']);
   assert.deepEqual(registry.resolveCandidates('modnet-portrait-matting', 'npu', caps), ['npu']);
+  assert.deepEqual(registry.resolveCandidates('swin2sr-lightweight-x2', 'auto', caps), ['webgpu', 'wasm']);
   assert.throws(() => registry.resolveCandidates('depth-anything-v2-small', 'npu', caps), /Tylko NPU/);
+  assert.throws(() => registry.resolveCandidates('swin2sr-lightweight-x2', 'npu', caps), /Tylko NPU/);
 });
 
 test('builds a capability-aware compatibility matrix and versioned cache keys', () => {
   const registry = new ModelRegistry();
   const matrix = registry.compatibilityMatrix({ npu: false, webgpu: true, wasm: true });
   const modnet = matrix.find(item => item.id === 'modnet-portrait-matting');
+  const restoration = matrix.find(item => item.id === 'swin2sr-realworld-x4');
   assert.equal(modnet.backends.npu.available, false);
   assert.equal(modnet.backends.webgpu.available, true);
+  assert.equal(restoration.backends.npu.available, false);
+  assert.equal(restoration.backends.webgpu.available, true);
   assert.match(modelCacheKey(registry.get('modnet-portrait-matting'), 'webgpu'), /@.+:webgpu$/);
 });
 
