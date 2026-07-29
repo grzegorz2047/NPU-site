@@ -3,205 +3,133 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="LocalStudio NPU — lokalny edytor obrazu z usuwaniem tła, retuszem, presetami eksportu i ręcznym maskowaniem prywatnych danych." />
-  <meta name="theme-color" content="#08120f" />
-  <title>LocalStudio NPU — lokalny edytor obrazu</title>
+  <meta name="description" content="LocalStudio NPU — kompaktowy lokalny edytor obrazu z funkcjami AI." />
+  <meta name="theme-color" content="#181818" />
+  <title>LocalStudio NPU — edytor obrazu</title>
   <link rel="stylesheet" href="./editor.css" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.all.min.js" defer></script>
   <script type="module" src="./src/editor-app.js"></script>
 </head>
 <body>
-  <div class="ambient ambient-a"></div>
-  <div class="ambient ambient-b"></div>
-  <header class="topbar">
-    <a class="brand" href="./" aria-label="LocalStudio NPU">
-      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span><strong>LocalStudio</strong><small>NPU</small></span>
-    </a>
-    <nav class="tool-nav" aria-label="Narzędzia"><a class="active" href="./">Edytor obrazu</a><a href="./privacy.html">Skaner prywatności</a><a href="./contract.html">Audyt umowy</a><a href="./example.html">Przykład audytu</a></nav><div class="top-actions">
-      <span id="capability-badge" class="badge" data-tone="neutral">Sprawdzanie akceleracji…</span>
-      <span id="runtime-badge" class="badge" data-tone="neutral">Silnik nieuruchomiony</span>
-    </div>
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="LocalStudio NPU"><span class="brand-mark">LS</span><strong>LocalStudio</strong><small>NPU</small></a>
+    <nav class="app-menu" aria-label="Pozostałe narzędzia">
+      <a href="./privacy.html">Skaner prywatności</a>
+      <a href="./contract.html">Audyt umowy</a>
+      <a href="./example.html">Przykład audytu</a>
+    </nav>
+    <div class="header-status"><span id="capability-badge" class="badge" data-tone="neutral">Sprawdzanie…</span><span id="runtime-badge" class="badge" data-tone="neutral">Silnik wyłączony</span></div>
   </header>
 
-  <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <span class="eyebrow">Obróbka lokalna · bez uploadu do chmury</span>
-        <h1>Pełnosprawny edytor obrazu z funkcjami AI, a nie tylko demo technologiczne.</h1>
-        <p>Przygotuj zdjęcie do CV, ofertę produktu, grafikę do social mediów albo zanonimizowany screenshot. Intel NPU obsługuje wycinanie tła i szybkie presety, a reszta edycji dzieje się lokalnie na canvasie.</p>
-        <div class="hero-points">
-          <span><b>01</b> Usuwanie i podmiana tła</span>
-          <span><b>02</b> Retusz, korekta i eksport</span>
-          <span><b>03</b> Redakcja prywatnych danych na obrazie</span>
-        </div>
+  <section class="command-bar" aria-label="Najważniejsze polecenia">
+    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+    <button id="browse-button" class="command primary" type="button">Otwórz</button>
+    <button id="sample-button" class="command" type="button">Przykład</button>
+    <span class="separator"></span>
+    <button id="segment-button" class="command accent" type="button" disabled>Usuń tło</button>
+    <button id="preset-cv" class="command" type="button" disabled>CV</button>
+    <button id="preset-sticker" class="command" type="button" disabled>Sticker</button>
+    <button id="preset-blur" class="command" type="button" disabled>Blur tła</button>
+    <span class="command-spacer"></span>
+    <button id="reset-button" class="command" type="button" disabled>Reset</button>
+    <button id="download-button" class="command primary" type="button" disabled>Eksportuj</button>
+  </section>
+
+  <main class="app-workspace">
+    <aside class="tool-rail" aria-label="Narzędzia">
+      <button class="tool-button recipe-button" data-recipe="cv" title="Portret do CV"><span>CV</span><small>Portret</small></button>
+      <button class="tool-button recipe-button" data-recipe="sticker" title="Sticker PNG"><span>◉</span><small>Sticker</small></button>
+      <button class="tool-button recipe-button" data-recipe="privacy" title="Ukrywanie danych"><span>▧</span><small>Redakcja</small></button>
+      <span class="rail-separator"></span>
+      <button id="rotate-left" class="tool-button" type="button" title="Obróć w lewo"><span>↺</span><small>Lewo</small></button>
+      <button id="rotate-right" class="tool-button" type="button" title="Obróć w prawo"><span>↻</span><small>Prawo</small></button>
+      <button id="flip-x" class="tool-button" type="button" title="Odbij poziomo"><span>↔</span><small>Poziom</small></button>
+      <button id="flip-y" class="tool-button" type="button" title="Odbij pionowo"><span>↕</span><small>Pion</small></button>
+      <span class="rail-spacer"></span>
+      <button id="fit-view" class="tool-button" type="button" title="Dopasuj widok"><span>□</span><small>Dopasuj</small></button>
+    </aside>
+
+    <section class="canvas-area" aria-label="Płótno robocze">
+      <div class="canvas-toolbar">
+        <div class="document-meta"><strong id="document-title">Bez nazwy</strong><span id="file-meta">Nie wybrano pliku.</span></div>
+        <div class="canvas-actions"><span id="mask-badge" class="badge" data-tone="neutral">Maska AI: nieaktywna</span></div>
       </div>
-      <div class="hero-side panel compact-panel">
-        <h2>Przykładowe użycia</h2>
-        <ul class="recipe-list">
-          <li><button class="recipe-button" data-recipe="cv">Portret do CV</button><small>Usuń tło, ustaw jasne tło i eksportuj JPG.</small></li>
-          <li><button class="recipe-button" data-recipe="sticker">Sticker PNG</button><small>Wytnij obiekt, dodaj białą obwódkę i cień.</small></li>
-          <li><button class="recipe-button" data-recipe="privacy">Anonimizowany screenshot</button><small>Rozmyj lub spikseluj wrażliwe obszary.</small></li>
-        </ul>
-      </div>
-    </section>
 
-    <section class="workspace-grid">
-      <aside class="controls-column">
-        <article class="panel">
-          <div class="panel-heading">
-            <div><span class="step">1</span><h2>Import obrazu</h2></div>
-            <button id="sample-button" class="text-button">Wczytaj przykład</button>
-          </div>
-          <label id="dropzone" class="dropzone">
-            <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden />
-            <div class="drop-icon">🖼</div>
-            <div><strong>Przeciągnij zdjęcie tutaj lub kliknij</strong><p>JPG, PNG lub WebP · maks. 20 MB</p></div>
-            <button id="browse-button" class="primary-button" type="button">Wybierz plik</button>
-          </label>
-          <p id="file-meta" class="muted">Nie wybrano pliku.</p>
-          <label class="stacked-field">Obraz tła do podmiany (opcjonalnie)
-            <input id="background-input" type="file" accept="image/jpeg,image/png,image/webp" />
-          </label>
-        </article>
-
-        <article class="panel">
-          <div class="panel-heading compact-heading"><div><span class="step">AI</span><h2>Narzędzia AI</h2></div></div>
-          <label>Preferowany akcelerator
-            <select id="backend-select">
-              <option value="auto">Automatycznie: NPU → GPU → CPU</option>
-              <option value="npu">Tylko NPU / WebNN</option>
-              <option value="gpu">GPU / Transformers.js</option>
-              <option value="cpu">CPU / WASM</option>
-            </select>
-          </label>
-          <div class="button-row wrap">
-            <button id="init-button" class="secondary-button" type="button">Uruchom silnik</button>
-            <button id="segment-button" class="primary-button" type="button" disabled>Usuń tło</button>
-          </div>
-          <div class="button-row wrap quick-presets">
-            <button id="preset-cv" class="ghost-button" type="button" disabled>Preset: CV</button>
-            <button id="preset-sticker" class="ghost-button" type="button" disabled>Preset: Sticker</button>
-            <button id="preset-blur" class="ghost-button" type="button" disabled>Preset: Blur portretu</button>
-          </div>
-          <div id="model-progress" class="progress-wrap" hidden>
-            <div class="progress-track"><span id="progress-bar"></span></div>
-            <span id="progress-text">Ładowanie modelu…</span>
-          </div>
-          <p id="engine-status" class="status">Silnik nieuruchomiony.</p>
-          <p class="muted small">AI jest używane tam, gdzie ma sens: do maski obiektu i szybkiego przygotowania portretów/stickerów. Pozostała edycja jest natychmiastowa i lokalna.</p>
-        </article>
-
-        <article class="panel">
-          <div class="panel-heading compact-heading"><div><span class="step">2</span><h2>Korekta obrazu</h2></div></div>
-          <div class="slider-grid">
-            <label><span>Jasność <output id="brightness-output">100%</output></span><input id="brightness" type="range" min="40" max="180" value="100" /></label>
-            <label><span>Kontrast <output id="contrast-output">100%</output></span><input id="contrast" type="range" min="40" max="180" value="100" /></label>
-            <label><span>Nasycenie <output id="saturation-output">100%</output></span><input id="saturation" type="range" min="0" max="200" value="100" /></label>
-            <label><span>Sepia <output id="sepia-output">0%</output></span><input id="sepia" type="range" min="0" max="100" value="0" /></label>
-            <label><span>Skala szarości <output id="grayscale-output">0%</output></span><input id="grayscale" type="range" min="0" max="100" value="0" /></label>
-            <label><span>Rozmycie <output id="blur-output">0 px</output></span><input id="blur" type="range" min="0" max="12" value="0" /></label>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-heading compact-heading"><div><span class="step">3</span><h2>Kadr i tło</h2></div></div>
-          <div class="button-row wrap">
-            <button id="rotate-left" class="ghost-button" type="button">↺ Obróć</button>
-            <button id="rotate-right" class="ghost-button" type="button">↻ Obróć</button>
-            <button id="flip-x" class="ghost-button" type="button">↔ Odbij</button>
-            <button id="flip-y" class="ghost-button" type="button">↕ Odbij</button>
-          </div>
-          <label><span>Maksymalny bok roboczy <output id="max-edge-output">1400 px</output></span><input id="max-edge" type="range" min="600" max="2000" step="50" value="1400" /></label>
-          <label>Tryb tła
-            <select id="background-mode">
-              <option value="original">Oryginalne</option>
-              <option value="transparent">Przezroczyste</option>
-              <option value="solid">Jednolity kolor</option>
-              <option value="gradient">Gradient</option>
-              <option value="blur">Rozmycie tła</option>
-              <option value="image">Podmiana na obraz</option>
-            </select>
-          </label>
-          <div class="inline-fields">
-            <label>Kolor A<input id="bg-color-a" type="color" value="#f6f7fb" /></label>
-            <label>Kolor B<input id="bg-color-b" type="color" value="#dbe8ff" /></label>
-          </div>
-          <label><span>Rozmycie tła <output id="bg-blur-output">18 px</output></span><input id="bg-blur" type="range" min="0" max="40" value="18" /></label>
-          <div class="inline-fields">
-            <label>Obwódka stickera<input id="outline-width" type="number" min="0" max="24" value="0" /></label>
-            <label>Cień<input id="shadow-strength" type="number" min="0" max="40" value="0" /></label>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-heading compact-heading"><div><span class="step">4</span><h2>Redakcja prywatnych danych</h2></div></div>
-          <label>Nowe zaznaczenia
-            <select id="redaction-mode">
-              <option value="off">Wyłączone</option>
-              <option value="blur">Rozmycie</option>
-              <option value="pixelate">Pikselizacja</option>
-              <option value="black">Czarny pasek</option>
-            </select>
-          </label>
-          <label><span>Siła efektu <output id="redaction-intensity-output">16</output></span><input id="redaction-intensity" type="range" min="4" max="40" value="16" /></label>
-          <div class="button-row wrap">
-            <button id="undo-redaction" class="ghost-button" type="button">Cofnij ostatnie</button>
-            <button id="clear-redactions" class="ghost-button" type="button">Wyczyść wszystkie</button>
-          </div>
-          <p class="muted small">Włącz tryb, a potem przeciągnij prostokąt na podglądzie wyniku. To przydatne do screenshotów z danymi osobowymi, numerami kont, mailami lub tokenami.</p>
-        </article>
-
-        <article class="panel">
-          <div class="panel-heading compact-heading"><div><span class="step">5</span><h2>Eksport</h2></div></div>
-          <label>Format
-            <select id="export-format">
-              <option value="png">PNG</option>
-              <option value="jpeg">JPEG</option>
-              <option value="webp">WebP</option>
-            </select>
-          </label>
-          <label><span>Jakość <output id="quality-output">92%</output></span><input id="export-quality" type="range" min="50" max="100" value="92" /></label>
-          <div class="button-row wrap">
-            <button id="download-button" class="primary-button" type="button" disabled>Pobierz wynik</button>
-            <button id="reset-button" class="secondary-button" type="button" disabled>Resetuj ustawienia</button>
-          </div>
-          <p id="download-status" class="status">Załaduj obraz, aby aktywować eksport.</p>
-        </article>
-      </aside>
-
-      <section class="preview-column panel">
-        <div class="panel-heading">
-          <div><span class="step">PREVIEW</span><h2>Podgląd pracy</h2></div>
-          <div class="button-row wrap slim">
-            <span id="mask-badge" class="badge" data-tone="neutral">Maska AI: nieaktywna</span>
-            <button id="fit-view" class="ghost-button" type="button">Dopasuj</button>
-          </div>
-        </div>
-        <div class="preview-grid">
-          <figure class="canvas-card">
-            <figcaption>Oryginał</figcaption>
-            <div class="canvas-wrap checker"><canvas id="original-canvas" width="640" height="480"></canvas><p id="original-empty" class="canvas-empty">Tutaj zobaczysz źródłowy obraz.</p></div>
-          </figure>
-          <figure class="canvas-card result-card">
-            <figcaption>Wynik</figcaption>
-            <div class="canvas-wrap checker result-wrap">
-              <canvas id="result-canvas" width="640" height="480"></canvas>
-              <canvas id="overlay-canvas" width="640" height="480"></canvas>
-              <p id="result-empty" class="canvas-empty">Po edycji zobaczysz gotowy wynik. W trybie redakcji rysuj prostokąty bezpośrednio na tym podglądzie.</p>
+      <div id="dropzone" class="stage checker">
+        <div class="original-buffer" aria-hidden="true"><canvas id="original-canvas" width="640" height="480"></canvas><p id="original-empty">Brak obrazu</p></div>
+        <div class="canvas-card result-card" onclick="event.stopPropagation()">
+          <div class="canvas-stack">
+            <canvas id="result-canvas" width="640" height="480"></canvas>
+            <canvas id="overlay-canvas" width="640" height="480"></canvas>
+            <div id="result-empty" class="empty-stage">
+              <div class="empty-icon">＋</div>
+              <strong>Przeciągnij obraz tutaj</strong>
+              <span>albo użyj przycisku „Otwórz” · JPG, PNG, WebP</span>
             </div>
-          </figure>
+          </div>
         </div>
-        <section class="notes-grid">
-          <article><h3>Co tu jest naprawdę użyteczne?</h3><p>To nie jest jeden przycisk „AI demo”. Możesz przygotować gotowy materiał do publikacji: poprawić obraz, usunąć tło, podmienić je, ukryć prywatne dane i pobrać finalny plik w praktycznym formacie.</p></article>
-          <article><h3>Kiedy NPU pomaga najmocniej?</h3><p>Największy zysk daje w segmentacji obrazu, bo to zadanie powtarzalne i równoległe. Dlatego interfejs jasno pokazuje, czy działa NPU, WebGPU czy CPU.</p></article>
-          <article><h3>Jak użyć edytora w praktyce?</h3><p><b>CV:</b> usuń tło → ustaw jednolite tło → lekko podnieś kontrast → eksportuj JPG. <b>Sticker:</b> usuń tło → przezroczyste tło → dodaj obwódkę → eksportuj PNG. <b>Screenshot:</b> zaznacz wrażliwe miejsca i pobierz wersję zanonimizowaną.</p></article>
-        </section>
-      </section>
-    </section>
-  </main>
+      </div>
 
-  <footer><span>LocalStudio NPU · obróbka lokalna bez backendu</span><a href="https://github.com/grzegorz2047/NPU-site">Repozytorium projektu</a></footer>
+      <footer class="status-bar">
+        <span id="engine-status">Silnik nieuruchomiony.</span>
+        <span id="download-status">Załaduj obraz, aby rozpocząć.</span>
+      </footer>
+    </section>
+
+    <aside class="inspector" aria-label="Właściwości obrazu">
+      <div class="inspector-title"><strong>Właściwości</strong><span>Local edit</span></div>
+
+      <details class="inspector-section" open>
+        <summary>AI i dokument</summary>
+        <div class="section-body">
+          <label>Akcelerator<select id="backend-select"><option value="auto">Auto: NPU → GPU → CPU</option><option value="npu">Tylko NPU / WebNN</option><option value="gpu">GPU / Transformers.js</option><option value="cpu">CPU / WASM</option></select></label>
+          <button id="init-button" class="panel-button" type="button">Uruchom silnik</button>
+          <div id="model-progress" class="progress-wrap" hidden><div class="progress-track"><span id="progress-bar"></span></div><span id="progress-text">Ładowanie modelu…</span></div>
+          <label class="file-field">Obraz tła<input id="background-input" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+        </div>
+      </details>
+
+      <details class="inspector-section" open>
+        <summary>Korekta</summary>
+        <div class="section-body slider-grid">
+          <label><span>Jasność <output id="brightness-output">100%</output></span><input id="brightness" type="range" min="40" max="180" value="100" /></label>
+          <label><span>Kontrast <output id="contrast-output">100%</output></span><input id="contrast" type="range" min="40" max="180" value="100" /></label>
+          <label><span>Nasycenie <output id="saturation-output">100%</output></span><input id="saturation" type="range" min="0" max="200" value="100" /></label>
+          <label><span>Sepia <output id="sepia-output">0%</output></span><input id="sepia" type="range" min="0" max="100" value="0" /></label>
+          <label><span>Szarość <output id="grayscale-output">0%</output></span><input id="grayscale" type="range" min="0" max="100" value="0" /></label>
+          <label><span>Rozmycie <output id="blur-output">0 px</output></span><input id="blur" type="range" min="0" max="12" value="0" /></label>
+        </div>
+      </details>
+
+      <details class="inspector-section">
+        <summary>Tło i kompozycja</summary>
+        <div class="section-body">
+          <label><span>Maksymalny bok <output id="max-edge-output">1400 px</output></span><input id="max-edge" type="range" min="600" max="2000" step="50" value="1400" /></label>
+          <label>Tryb tła<select id="background-mode"><option value="original">Oryginalne</option><option value="transparent">Przezroczyste</option><option value="solid">Jednolity kolor</option><option value="gradient">Gradient</option><option value="blur">Rozmycie tła</option><option value="image">Obraz użytkownika</option></select></label>
+          <div class="two-columns"><label>Kolor A<input id="bg-color-a" type="color" value="#f6f7fb" /></label><label>Kolor B<input id="bg-color-b" type="color" value="#dbe8ff" /></label></div>
+          <label><span>Rozmycie tła <output id="bg-blur-output">18 px</output></span><input id="bg-blur" type="range" min="0" max="40" value="18" /></label>
+          <div class="two-columns"><label>Obwódka<input id="outline-width" type="number" min="0" max="24" value="0" /></label><label>Cień<input id="shadow-strength" type="number" min="0" max="40" value="0" /></label></div>
+        </div>
+      </details>
+
+      <details class="inspector-section">
+        <summary>Redakcja danych</summary>
+        <div class="section-body">
+          <label>Tryb<select id="redaction-mode"><option value="off">Wyłączone</option><option value="blur">Rozmycie</option><option value="pixelate">Pikselizacja</option><option value="black">Czarny pasek</option></select></label>
+          <label><span>Siła <output id="redaction-intensity-output">16</output></span><input id="redaction-intensity" type="range" min="4" max="40" value="16" /></label>
+          <div class="two-buttons"><button id="undo-redaction" class="panel-button" type="button">Cofnij</button><button id="clear-redactions" class="panel-button" type="button">Wyczyść</button></div>
+          <p class="hint">Wybierz tryb i przeciągnij prostokąt bezpośrednio po płótnie.</p>
+        </div>
+      </details>
+
+      <details class="inspector-section" open>
+        <summary>Eksport</summary>
+        <div class="section-body">
+          <div class="two-columns"><label>Format<select id="export-format"><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></label><label><span>Jakość <output id="quality-output">92%</output></span><input id="export-quality" type="range" min="50" max="100" value="92" /></label></div>
+        </div>
+      </details>
+    </aside>
+  </main>
 </body>
 </html>
