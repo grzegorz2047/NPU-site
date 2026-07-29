@@ -165,6 +165,7 @@ test('runs tiled inference with progress and supports cancellation', async () =>
   });
   assert.equal(result.data.length, 63);
   assert.equal(progress.at(-1), 100);
+  assert.ok(result.stitchDurationMs >= 0);
 
   const controller = new AbortController();
   controller.abort('stop');
@@ -202,6 +203,7 @@ test('runs two different models through one API and reuses sessions', async () =
   assert.ok(mask.benchmark.stages.preprocessing.durationMs > 0);
   assert.ok(mask.benchmark.stages.inference.durationMs > 0);
   assert.equal(runtime.diagnostics().sessions.length, 2);
+  assert.equal(runtime.diagnostics().sessionDetails.find(item => item.key.endsWith(':npu')).ioBinding, true);
   await runtime.dispose();
   assert.deepEqual(counters.disposed.sort(), ['npu', 'webgpu']);
 });
@@ -216,6 +218,9 @@ test('auto mode falls back after a backend error but NPU-only never falls back',
       wasm: async () => ({ run: value => value })
     }
   });
+  const initialized = await runtime.initialize({ modelId: 'mask-model', mode: 'auto' });
+  assert.equal(initialized.backend, 'webgpu');
+  assert.equal(runtime.diagnostics().lastReport.metadata.actualBackend, 'webgpu');
   const automatic = await runtime.run({ modelId: 'mask-model', input: 1, mode: 'auto' });
   assert.equal(automatic.backend, 'webgpu');
   await assert.rejects(runtime.run({ modelId: 'mask-model', input: 1, mode: 'npu' }), /operator unsupported/);
