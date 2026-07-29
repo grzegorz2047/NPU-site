@@ -1,0 +1,7 @@
+import test from'node:test';import assert from'node:assert/strict';import{validatePesel,validateLuhn,validateIban,scanSensitiveData,redactSensitiveData}from'../src/privacy-scanner.js';
+test('validates PESEL checksum',()=>{assert.equal(validatePesel('44051401458'),true);assert.equal(validatePesel('44051401459'),false)});
+test('validates payment card with Luhn',()=>{assert.equal(validateLuhn('4111 1111 1111 1111'),true);assert.equal(validateLuhn('4111 1111 1111 1112'),false)});
+test('validates IBAN checksum',()=>{assert.equal(validateIban('PL61 1090 1014 0000 0712 1981 2874'),true);assert.equal(validateIban('PL60 1090 1014 0000 0712 1981 2874'),false)});
+test('detects supported sensitive data with locations',()=>{const text='Kontakt: anna@example.com\nPESEL: 44051401458\nIP: 192.168.1.25\nKarta: 4111 1111 1111 1111';const findings=scanSensitiveData(text);assert.deepEqual(new Set(findings.map(x=>x.type)),new Set(['email','pesel','ip','card']));const pesel=findings.find(x=>x.type==='pesel');assert.equal(pesel.line,2);assert.equal(pesel.column,8)});
+test('rejects invalid checksum lookalikes',()=>{const findings=scanSensitiveData('PESEL 44051401459 karta 4111 1111 1111 1112 IBAN PL60 1090 1014 0000 0712 1981 2874');assert.equal(findings.some(x=>['pesel','card','iban'].includes(x.type)),false)});
+test('redacts only detected values',()=>{const text='Napisz do anna@example.com w sprawie projektu.';const redacted=redactSensitiveData(text);assert.equal(redacted,'Napisz do [EMAIL] w sprawie projektu.')});
