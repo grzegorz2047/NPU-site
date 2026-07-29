@@ -1,1 +1,1 @@
-{"name":"LocalSafe NPU","short_name":"LocalSafe","description":"Lokalny skaner prywatności i audyt umów bez wysyłania danych do chmury","start_url":"./","scope":"./","display":"standalone","background_color":"#07100d","theme_color":"#07100d"}
+{"name":"LocalLab NPU","short_name":"LocalLab","description":"Lokalne studio obrazu, skaner prywatności i audyt umów działające bez wysyłania danych do chmury","start_url":"./","scope":"./","display":"standalone","background_color":"#07100d","theme_color":"#07100d"}
